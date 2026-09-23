@@ -19,17 +19,20 @@ export function CuttingList({ cuttings, plants }: { cuttings: Cutting[]; plants:
     );
   }
 
-  const names = new Map(plants.map((p) => [p.id, p.nickname]));
+  const byId = new Map(plants.map((p) => [p.id, p]));
   const day = today();
   const groups = groupCuttings(cuttings);
   const rows = (list: Cutting[]) =>
     list.map((cutting) => {
-      const parent = cutting.parent_plant_id ? names.get(cutting.parent_plant_id) : null;
-      const became = cutting.plant_id ? names.get(cutting.plant_id) : null;
+      const parentPlant = cutting.parent_plant_id ? byId.get(cutting.parent_plant_id) : null;
+      const parent = parentPlant?.nickname;
+      const became = cutting.plant_id ? byId.get(cutting.plant_id)?.nickname : null;
       return (
         <ListRow
           key={cutting.id}
-          leading={<PlantThumb uri={cutting.photo_uri} size={56} />}
+          leading={
+            <PlantThumb uri={cutting.photo_uri} species={cutting.species ?? parentPlant?.species} size={56} />
+          }
           title={cuttingTitle(cutting, parent)}
           subtitle={[
             parent ? cutting.species : null,

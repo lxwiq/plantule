@@ -1,19 +1,24 @@
 import { Image } from 'expo-image';
 import { View } from 'react-native';
 
-import { Icon, icons } from '@/components/ui';
+import type { Mood } from '@/art';
+import { PlantArt } from '@/components/art';
 import { radius, useTheme } from '@/theme';
 
 type PlantThumbProps = {
   /** Local file of the photo. */
   uri?: string | null;
+  /** The plant's species, drawn when there is no photo. */
+  species?: string | null;
+  /** The face of the drawing's pot, see `plantMood()`. */
+  mood?: Mood;
   size?: number;
   /** Rounded square by default; circle for small inline uses. */
   shape?: 'square' | 'circle';
 };
 
-/** The plant's main photo, or a leaf when it has none. */
-export function PlantThumb({ uri, size = 56, shape = 'square' }: PlantThumbProps) {
+/** The plant's main photo, or the drawing of its species on a soft tile when it has none. */
+export function PlantThumb({ uri, species, mood = 'happy', size = 56, shape = 'square' }: PlantThumbProps) {
   const theme = useTheme();
   const borderRadius = shape === 'circle' ? radius.full : size >= 96 ? radius.lg : radius.md;
   if (!uri) {
@@ -24,11 +29,10 @@ export function PlantThumb({ uri, size = 56, shape = 'square' }: PlantThumbProps
           height: size,
           borderRadius,
           borderCurve: 'continuous',
-          alignItems: 'center',
-          justifyContent: 'center',
+          overflow: 'hidden',
           backgroundColor: theme.primaryContainer,
         }}>
-        <Icon name={icons.leaf} size={Math.round(size * 0.45)} color={theme.onPrimaryContainer} />
+        <PlantArt species={species} mood={mood} size={size} />
       </View>
     );
   }

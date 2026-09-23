@@ -4,6 +4,7 @@ import type { Plant, Task } from '@/db/types';
 import { Icon, icons, Text } from '@/components/ui';
 import { daysBetween, formatDue, formatInterval, formatRelativeTime, today } from '@/lib/dates';
 import { TASK_KINDS, taskTitle } from '@/lib/labels';
+import { plantMood } from '@/lib/plant-mood';
 import { isDoneToday } from '@/lib/tasks';
 import { capitalize } from '@/lib/text';
 import { radius, spacing, touchTarget, useAccent, useTheme } from '@/theme';
@@ -86,7 +87,13 @@ export function TaskRow({ task, plant, roomName, onPress, onComplete }: TaskRowP
         })}>
         {plant ? (
           <View>
-            <PlantThumb uri={plant.main_photo_uri} size={52} />
+            <PlantThumb
+              uri={plant.main_photo_uri}
+              species={plant.species}
+              // Its face follows this care: thirsty for a late watering, joyful once done.
+              mood={plantMood([task])}
+              size={52}
+            />
             <View style={{ position: 'absolute', right: -6, bottom: -6 }}>
               <View style={{ borderRadius: radius.full, borderWidth: 2, borderColor: theme.surfaceContainerLow }}>
                 <TaskKindBadge task={task} size={24} />

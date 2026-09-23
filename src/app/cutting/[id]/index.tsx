@@ -176,7 +176,7 @@ function CuttingDetails({ cutting }: { cutting: Cutting }) {
         {plant && (
           <ListSection title="Devenue une plante">
             <ListRow
-              leading={<PlantThumb uri={plant.main_photo_uri} size={48} />}
+              leading={<PlantThumb uri={plant.main_photo_uri} species={plant.species} size={48} />}
               title={plant.nickname}
               subtitle={plant.species}
               onPress={() => openPlant(plant.id)}
@@ -188,7 +188,7 @@ function CuttingDetails({ cutting }: { cutting: Cutting }) {
         <ListSection title="Infos">
           {parent ? (
             <ListRow
-              leading={<PlantThumb uri={parent.main_photo_uri} size={40} />}
+              leading={<PlantThumb uri={parent.main_photo_uri} species={parent.species} size={40} />}
               title={parent.nickname}
               subtitle="Plante mère"
               onPress={() => openPlant(parent.id)}

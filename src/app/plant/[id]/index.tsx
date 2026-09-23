@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
 
 import { useModelStatus } from '@/ai';
+import { PlantArt } from '@/components/art';
 import { CareSheetSections, SHEET_DISCLAIMER, SHEET_INCOMPLETE } from '@/components/care-sheet-view';
 import { plainAnswer } from '@/components/chat-view';
 import { DiagnosisRow } from '@/components/diagnosis-view';
@@ -42,6 +43,7 @@ import { cuttingTitle } from '@/lib/cuttings';
 import { formatShortDate } from '@/lib/dates';
 import { closeScreen } from '@/lib/navigation';
 import { photoDay } from '@/lib/photos';
+import { plantMood } from '@/lib/plant-mood';
 import { byDueDate } from '@/lib/tasks';
 import { radius, spacing, useTheme } from '@/theme';
 
@@ -79,6 +81,8 @@ function PlantDetails({ plant }: { plant: Plant }) {
     () => tasks.filter((t) => t.plant_id === plant.id).sort(byDueDate),
     [tasks, plant.id],
   );
+  // Newest first; the latest sets the mood of the drawing.
+  const diagnoses = useDiagnoses(plant.id);
 
   const openPhoto = (photoId: string) =>
     router.push({ pathname: '/plant/[id]/photo/[photoId]', params: { id: plant.id, photoId } });
@@ -140,35 +144,38 @@ function PlantDetails({ plant }: { plant: Plant }) {
             />
           </Pressable>
         ) : (
+          // No photo yet: the drawing of its species, in its mood, and a way to add one.
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Ajouter une photo"
             onPress={choosePhoto}
             android_ripple={{ color: theme.outlineVariant }}
             style={{
-              aspectRatio: 2,
               borderRadius: radius.xl,
               borderCurve: 'continuous',
               overflow: 'hidden',
               alignItems: 'center',
-              justifyContent: 'center',
-              gap: spacing.sm,
+              gap: spacing.xs,
+              paddingTop: spacing.sm,
+              paddingBottom: spacing.lg,
               backgroundColor: theme.primaryContainer,
             }}>
+            <PlantArt species={plant.species} mood={plantMood(plantTasks, diagnoses[0])} size={200} />
             <View
               style={{
-                width: 56,
-                height: 56,
-                borderRadius: radius.full,
+                flexDirection: 'row',
                 alignItems: 'center',
-                justifyContent: 'center',
+                gap: spacing.sm,
+                minHeight: 36,
+                paddingHorizontal: spacing.lg,
+                borderRadius: radius.full,
                 backgroundColor: theme.primary,
               }}>
-              <Icon name={icons.camera} size={28} color={theme.onPrimary} />
+              <Icon name={icons.camera} size={18} color={theme.onPrimary} />
+              <Text variant="label" color={theme.onPrimary}>
+                {savingPhoto ? 'Enregistrement de la photo…' : 'Ajouter une photo'}
+              </Text>
             </View>
-            <Text variant="label" color={theme.onPrimaryContainer}>
-              {savingPhoto ? 'Enregistrement de la photo…' : 'Ajouter une photo'}
-            </Text>
           </Pressable>
         )}
 

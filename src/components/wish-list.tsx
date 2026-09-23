@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 
+import { PlantThumb } from '@/components/plant-thumb';
 import { EmptyState, icons, ListRow, ListSection } from '@/components/ui';
 import type { Wish } from '@/db/types';
 import { formatShortDate, toDateString } from '@/lib/dates';
@@ -26,7 +27,7 @@ export function WishList({ wishes }: { wishes: Wish[] }) {
         return (
           <ListRow
             key={wish.id}
-            leading={icons.star}
+            leading={<PlantThumb species={wish.species} mood="love" size={48} />}
             title={capitalize(wish.species)}
             subtitle={
               reference

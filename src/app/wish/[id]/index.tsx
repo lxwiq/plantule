@@ -2,6 +2,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Alert, View } from 'react-native';
 
 import { Fact } from '@/components/care-sheet-view';
+import { PlantThumb } from '@/components/plant-thumb';
 import {
   Button,
   EmptyState,
@@ -91,18 +92,21 @@ function WishDetails({ wish }: { wish: Wish }) {
         }}
       />
       <Screen>
-        <View style={{ gap: spacing.xs }}>
-          <Text variant="title" selectable>
-            {capitalize(wish.species)}
-          </Text>
-          {scientificName && scientificName.toLowerCase() !== wish.species.trim().toLowerCase() ? (
-            <Text variant="body" tone="secondary" style={{ fontStyle: 'italic' }} selectable>
-              {scientificName}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
+          <PlantThumb species={scientificName ?? wish.species} mood="love" size={96} />
+          <View style={{ flex: 1, gap: spacing.xs }}>
+            <Text variant="title" selectable>
+              {capitalize(wish.species)}
             </Text>
-          ) : null}
-          <Text variant="subhead" tone="secondary">
-            {`Ajoutée le ${formatShortDate(toDateString(new Date(wish.created_at)))}`}
-          </Text>
+            {scientificName && scientificName.toLowerCase() !== wish.species.trim().toLowerCase() ? (
+              <Text variant="body" tone="secondary" style={{ fontStyle: 'italic' }} selectable>
+                {scientificName}
+              </Text>
+            ) : null}
+            <Text variant="subhead" tone="secondary">
+              {`Ajoutée le ${formatShortDate(toDateString(new Date(wish.created_at)))}`}
+            </Text>
+          </View>
         </View>
 
         <Button title="Je l’ai !" icon={icons.check} onPress={() => gotIt(wish)} />

@@ -14,11 +14,20 @@ import {
   ScreenTitle,
 } from '@/components/ui';
 import { WishList } from '@/components/wish-list';
-import { useCurrentPlace, useCuttings, usePlants, useRooms, useTasks, useWishes } from '@/db/hooks';
+import {
+  useCurrentPlace,
+  useCuttings,
+  useLatestDiagnoses,
+  usePlants,
+  useRooms,
+  useTasks,
+  useWishes,
+} from '@/db/hooks';
 import type { Plant, Room, Task } from '@/db/types';
 import { isGrowing } from '@/lib/cuttings';
 import { formatDue } from '@/lib/dates';
 import { plural, TASK_KINDS } from '@/lib/labels';
+import { plantMood } from '@/lib/plant-mood';
 
 /** The tab shows the plants of the place, its cuttings, or the wishlist. */
 type Collection = 'plants' | 'cuttings' | 'wishes';
@@ -65,6 +74,7 @@ export default function Plants() {
   const tasks = useTasks(place.id);
   const cuttings = useCuttings(place.id);
   const wishes = useWishes();
+  const diagnoses = useLatestDiagnoses(place.id);
   const groups = useMemo(() => groupByRoom(plants, rooms), [plants, rooms]);
   const [view, setView] = useState<Collection>('plants');
 
@@ -105,7 +115,17 @@ export default function Plants() {
             {group.plants.map((plant) => (
               <ListRow
                 key={plant.id}
-                leading={<PlantThumb uri={plant.main_photo_uri} size={56} />}
+                leading={
+                  <PlantThumb
+                    uri={plant.main_photo_uri}
+                    species={plant.species}
+                    mood={plantMood(
+                      tasks.filter((t) => t.plant_id === plant.id),
+                      diagnoses.get(plant.id),
+                    )}
+                    size={56}
+                  />
+                }
                 title={plant.nickname}
                 subtitle={[plant.species, nextCare(plant.id, tasks)].filter(Boolean).join('\n')}
                 onPress={() => router.push({ pathname: '/plant/[id]', params: { id: plant.id } })}

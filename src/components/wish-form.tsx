@@ -1,6 +1,7 @@
 import { View } from 'react-native';
 
-import { icons, ListRow, ListSection, TextField } from '@/components/ui';
+import { PlantThumb } from '@/components/plant-thumb';
+import { ListRow, ListSection, TextField } from '@/components/ui';
 import type { Wish, WishInput } from '@/db/types';
 import { findReference, referenceKey, searchReferences } from '@/lib/plant-reference';
 import { capitalize } from '@/lib/text';
@@ -56,7 +57,7 @@ export function WishFields({ draft, onChange, autoFocus }: WishFieldsProps) {
             {suggestions.map(({ plant, name }) => (
               <ListRow
                 key={plant.id}
-                leading={icons.leaf}
+                leading={<PlantThumb species={plant.scientific_name} size={40} />}
                 title={capitalize(name)}
                 subtitle={
                   referenceKey(name) === referenceKey(plant.scientific_name)

@@ -6,6 +6,7 @@ import { Pressable, View } from 'react-native';
 import { identifyPlant, isAbortError, modelIsWarm } from '@/ai/plant-ai';
 import { AiProgress } from '@/components/ai-progress';
 import { PhotoFindingsSection } from '@/components/photo-findings';
+import { PlantThumb } from '@/components/plant-thumb';
 import {
   Banner,
   Button,
@@ -284,6 +285,7 @@ function CandidateRow({ candidate, selected, onPress }: CandidateRowProps) {
           </Text>
         </View>
       </View>
+      <PlantThumb species={candidate.scientific_name} size={56} />
     </Pressable>
   );
 }

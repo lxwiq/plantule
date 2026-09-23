@@ -312,7 +312,7 @@ function CareThumb({ plant, kind }: { plant: Plant; kind: TaskKind }) {
   const theme = useTheme();
   return (
     <View>
-      <PlantThumb uri={plant.main_photo_uri} size={48} />
+      <PlantThumb uri={plant.main_photo_uri} species={plant.species} size={48} />
       <View style={{ position: 'absolute', right: -6, bottom: -6 }}>
         <View style={{ borderRadius: radius.full, borderWidth: 2, borderColor: theme.surfaceContainerLow }}>
           <TaskKindBadge task={{ kind }} size={24} />

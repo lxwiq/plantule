@@ -12,6 +12,7 @@ import {
   SHEET_INCOMPLETE,
   SpeciesNames,
 } from '@/components/care-sheet-view';
+import { PlantThumb } from '@/components/plant-thumb';
 import { Banner, Button, EmptyState, icons, Screen } from '@/components/ui';
 import { usePlant, useSpeciesSheet } from '@/db/hooks';
 import { findSpeciesSheet, saveSpeciesSheet, setPlantSpeciesSheet } from '@/db/repo';
@@ -141,6 +142,7 @@ function SheetFlow({ species, commonName, photoUri, plantId, findings, refresh }
     closeScreen();
   };
 
+  // The scan's photo, or the drawing of the species from a plant's screen.
   const photo = photoUri ? (
     <Image
       source={{ uri: photoUri }}
@@ -148,7 +150,9 @@ function SheetFlow({ species, commonName, photoUri, plantId, findings, refresh }
       accessibilityLabel="Photo de la plante"
       style={{ width: 72, height: 72, borderRadius: radius.lg, backgroundColor: theme.surfaceContainerHigh }}
     />
-  ) : null;
+  ) : (
+    <PlantThumb species={scientificName} size={72} />
+  );
 
   if (!sheet) {
     return (
