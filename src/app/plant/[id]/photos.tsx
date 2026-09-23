@@ -3,6 +3,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
 import { Pressable, View } from 'react-native';
 
+import { Scene } from '@/components/scene';
 import { EmptyState, HeaderButton, Icon, icons, Screen, Text } from '@/components/ui';
 import { usePhotos, usePlant } from '@/db/hooks';
 import type { Photo, Plant } from '@/db/types';
@@ -28,6 +29,7 @@ export default function PlantPhotos() {
     return (
       <Screen>
         <EmptyState
+          art={<Scene id="searching" />}
           title="Plante introuvable"
           message="Elle a peut-être été supprimée."
           action={{ label: 'Retour', onPress: closeScreen }}

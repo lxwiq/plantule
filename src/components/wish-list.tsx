@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 
 import { PlantThumb } from '@/components/plant-thumb';
+import { Scene } from '@/components/scene';
 import { EmptyState, icons, ListRow, ListSection } from '@/components/ui';
 import type { Wish } from '@/db/types';
 import { formatShortDate, toDateString } from '@/lib/dates';
@@ -13,9 +14,9 @@ export function WishList({ wishes }: { wishes: Wish[] }) {
   if (wishes.length === 0) {
     return (
       <EmptyState
-        icon={icons.star}
+        art={<Scene id="dreaming" />}
         title="Aucune envie"
-        message="Note les plantes que tu aimerais avoir. Pour les espèces connues, Plantule te dit leur lumière, leur arrosage et si elles sont toxiques pour tes animaux."
+        message="Note les plantes dont tu rêves. Pour les espèces connues, Plantule te dit leur lumière, leur arrosage et si elles sont toxiques pour tes animaux."
         action={{ label: 'Nouvelle envie', icon: icons.add, onPress: () => router.push('/wish/new') }}
       />
     );

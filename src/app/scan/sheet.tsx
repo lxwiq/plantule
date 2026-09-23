@@ -13,6 +13,7 @@ import {
   SpeciesNames,
 } from '@/components/care-sheet-view';
 import { PlantThumb } from '@/components/plant-thumb';
+import { Scene } from '@/components/scene';
 import { Banner, Button, EmptyState, icons, Screen } from '@/components/ui';
 import { usePlant, useSpeciesSheet } from '@/db/hooks';
 import { findSpeciesSheet, saveSpeciesSheet, setPlantSpeciesSheet } from '@/db/repo';
@@ -49,6 +50,7 @@ export default function SpeciesSheetScreen() {
     return (
       <Screen>
         <EmptyState
+          art={<Scene id="searching" />}
           title="Espèce inconnue"
           message="Choisis d’abord une espèce."
           action={{ label: 'Retour', onPress: closeScreen }}

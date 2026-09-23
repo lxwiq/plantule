@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, FlatList, Pressable, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Scene } from '@/components/scene';
 import { EmptyState, Icon, icons, Screen, Text, type IconName } from '@/components/ui';
 import { usePhotos, usePlant } from '@/db/hooks';
 import { deletePhoto, setMainPhoto, setPhotoTakenAt } from '@/db/repo';
@@ -28,6 +29,7 @@ export default function PhotoViewer() {
     return (
       <Screen>
         <EmptyState
+          art={<Scene id="searching" />}
           title="Photo introuvable"
           message="Elle a peut-être été supprimée."
           action={{ label: 'Retour', onPress: closeScreen }}

@@ -9,6 +9,7 @@ import { CareSheetSections, SHEET_DISCLAIMER, SHEET_INCOMPLETE } from '@/compone
 import { plainAnswer } from '@/components/chat-view';
 import { DiagnosisRow } from '@/components/diagnosis-view';
 import { EventRow } from '@/components/event-row';
+import { Scene } from '@/components/scene';
 import { TaskRow } from '@/components/task-row';
 import {
   Banner,
@@ -54,6 +55,7 @@ export default function PlantScreen() {
     return (
       <Screen>
         <EmptyState
+          art={<Scene id="searching" />}
           title="Plante introuvable"
           message="Elle a peut-être été supprimée."
           action={{ label: 'Retour', onPress: closeScreen }}

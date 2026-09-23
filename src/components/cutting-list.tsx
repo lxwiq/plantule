@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 
 import { PlantThumb } from '@/components/plant-thumb';
+import { Scene } from '@/components/scene';
 import { EmptyState, icons, ListRow, ListSection } from '@/components/ui';
 import type { Cutting, Plant } from '@/db/types';
 import { cuttingProgress, cuttingTitle, groupCuttings } from '@/lib/cuttings';
@@ -11,7 +12,7 @@ export function CuttingList({ cuttings, plants }: { cuttings: Cutting[]; plants:
   if (cuttings.length === 0) {
     return (
       <EmptyState
-        icon={icons.propagation}
+        art={<Scene id="cutting" />}
         title="Aucune bouture"
         message="Note d’où viennent tes boutures, comment elles s’enracinent, et fais-en des plantes une fois rempotées."
         action={{ label: 'Nouvelle bouture', icon: icons.add, onPress: () => router.push('/cutting/new') }}

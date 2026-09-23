@@ -2,6 +2,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 
 import { draftToInput, PlantFields, plantDraft } from '@/components/plant-form';
+import { Scene } from '@/components/scene';
 import { EmptyState, HeaderButton, Screen } from '@/components/ui';
 import { usePlant, useRooms } from '@/db/hooks';
 import { updatePlant } from '@/db/repo';
@@ -12,7 +13,15 @@ import { closeScreen } from '@/lib/navigation';
 export default function EditPlant() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const plant = usePlant(id);
-  if (!plant) return <EmptyState title="Plante introuvable" message="Elle a peut-être été supprimée." />;
+  if (!plant) {
+    return (
+      <EmptyState
+        art={<Scene id="searching" />}
+        title="Plante introuvable"
+        message="Elle a peut-être été supprimée."
+      />
+    );
+  }
   return <EditPlantForm plant={plant} />;
 }
 

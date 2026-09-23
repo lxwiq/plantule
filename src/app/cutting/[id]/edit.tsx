@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Alert } from 'react-native';
 
 import { cuttingDraft, CuttingFields, draftToCuttingInput } from '@/components/cutting-form';
+import { Scene } from '@/components/scene';
 import { EmptyState, HeaderButton, Screen } from '@/components/ui';
 import { useCutting, usePlants } from '@/db/hooks';
 import { setCuttingPhoto, updateCutting } from '@/db/repo';
@@ -14,7 +15,15 @@ const errorText = (error: unknown) => (error instanceof Error ? error.message : 
 export default function EditCutting() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const cutting = useCutting(id);
-  if (!cutting) return <EmptyState title="Bouture introuvable" message="Elle a peut-être été supprimée." />;
+  if (!cutting) {
+    return (
+      <EmptyState
+        art={<Scene id="searching" />}
+        title="Bouture introuvable"
+        message="Elle a peut-être été supprimée."
+      />
+    );
+  }
   return <EditCuttingForm cutting={cutting} />;
 }
 

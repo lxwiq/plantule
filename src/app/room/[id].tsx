@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Alert } from 'react-native';
 
 import { RoomFields, roomDraft, roomInput } from '@/components/room-form';
+import { Scene } from '@/components/scene';
 import { EmptyState, HeaderButton, icons, ListRow, ListSection, Screen } from '@/components/ui';
 import { useCurrentPlace, usePlants, useRooms } from '@/db/hooks';
 import { deleteRoom, updateRoom } from '@/db/repo';
@@ -14,7 +15,15 @@ export default function EditRoom() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const place = useCurrentPlace();
   const room = useRooms(place.id).find((r) => r.id === id);
-  if (!room) return <EmptyState title="Pièce introuvable" message="Elle a peut-être été supprimée." />;
+  if (!room) {
+    return (
+      <EmptyState
+        art={<Scene id="searching" />}
+        title="Pièce introuvable"
+        message="Elle a peut-être été supprimée."
+      />
+    );
+  }
   return <EditRoomForm room={room} />;
 }
 

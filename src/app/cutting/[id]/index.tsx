@@ -3,6 +3,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Alert, View } from 'react-native';
 
 import { PlantThumb } from '@/components/plant-thumb';
+import { Scene } from '@/components/scene';
 import {
   Banner,
   ChoiceChips,
@@ -38,7 +39,7 @@ export default function CuttingScreen() {
     return (
       <Screen>
         <EmptyState
-          icon={icons.propagation}
+          art={<Scene id="searching" />}
           title="Bouture introuvable"
           message="Elle a peut-être été supprimée."
           action={{ label: 'Retour', onPress: closeScreen }}
