@@ -797,6 +797,20 @@ export function listDiagnoses(plantId: string): DiagnosisRecord[] {
     .filter((d): d is DiagnosisRecord => d !== null);
 }
 
+/** The status and date of the latest diagnosis of each plant of a place, by plant id. */
+export function listLatestDiagnoses(
+  placeId: string,
+): Map<string, Pick<DiagnosisRecord, 'status' | 'created_at'>> {
+  // With a single max(), SQLite takes the other columns from the row holding it.
+  const rows = db().getAllSync<Pick<DiagnosisRecord, 'plant_id' | 'status' | 'created_at'>>(
+    `select d.plant_id, d.status, max(d.created_at) as created_at
+     from diagnoses d join plants p on p.id = d.plant_id
+     where p.place_id = ? group by d.plant_id`,
+    placeId,
+  );
+  return new Map(rows.map(({ plant_id, ...latest }) => [plant_id, latest]));
+}
+
 export function getDiagnosis(id: string): DiagnosisRecord | null {
   return toDiagnosis(db().getFirstSync<DiagnosisRow>(`${DIAGNOSIS_SELECT} where d.id = ?`, id));
 }

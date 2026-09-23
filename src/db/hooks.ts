@@ -82,6 +82,13 @@ export function useDiagnoses(plantId: string) {
   return useLiveQuery(`diagnoses:${plantId}`, ['diagnoses', 'photos'], () => repo.listDiagnoses(plantId));
 }
 
+/** The status and date of the latest diagnosis of each plant of a place, by plant id. */
+export function useLatestDiagnoses(placeId: string) {
+  return useLiveQuery(`latest_diagnoses:${placeId}`, ['diagnoses', 'plants'], () =>
+    repo.listLatestDiagnoses(placeId),
+  );
+}
+
 export function useDiagnosis(diagnosisId: string) {
   return useLiveQuery(`diagnosis:${diagnosisId}`, ['diagnoses', 'photos'], () => repo.getDiagnosis(diagnosisId));
 }
