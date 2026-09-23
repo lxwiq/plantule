@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"><defs>
+  <radialGradient id="bg" cx="50%" cy="42%" r="70%">
+    <stop offset="0" stop-color="#CFF8D5"/><stop offset="1" stop-color="#A2E4AD"/>
+  </radialGradient>
+  <linearGradient id="leafL" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#5FB06D"/><stop offset="1" stop-color="#2E6B3E"/>
+  </linearGradient>
+  <linearGradient id="leafR" x1="1" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#4E9E5E"/><stop offset="1" stop-color="#245A33"/>
+  </linearGradient>
+  <linearGradient id="pot" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#C9623D"/><stop offset="0.12" stop-color="#E07B53"/><stop offset="1" stop-color="#E88A62"/>
+  </linearGradient>
+  <linearGradient id="seed" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#E7B27A"/><stop offset="1" stop-color="#C98A52"/>
+  </linearGradient>
+  <linearGradient id="soil" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#9A6A45"/><stop offset="1" stop-color="#7A5033"/>
+  </linearGradient>
+</defs><rect width="1024" height="1024" fill="url(#bg)"/><g transform="translate(-21.61 -64.00) scale(1.0361)"><path d="M 512 600 C 512 523.5, 522 489.5, 512 430" fill="none" stroke="#2E6B3E" stroke-width="32" stroke-linecap="round"/><path d="M 506.0 452.0 C 557.3 341.8 400.1 255.0 300.0 330.0 C 295.5 431.5 447.3 527.7 506.0 452.0 Z" fill="url(#leafL)"/><path d="M 481.3 437.4 Q 417.7 389.7 359.7 360.8" fill="none" stroke="#A9E3B1" stroke-width="11" stroke-linecap="round" opacity="0.75"/><path d="M 520.0 436.0 C 574.3 504.1 729.4 406.8 730.0 312.0 C 634.7 246.5 474.7 335.3 520.0 436.0 Z" fill="url(#leafR)"/><path d="M 545.2 421.1 Q 618.5 387.0 669.4 343.7" fill="none" stroke="#A9E3B1" stroke-width="10" stroke-linecap="round" opacity="0.75"/><path d="M 348 612 L 676 612 L 646 808 Q 642 830 618 830 L 406 830 Q 382 830 378 808 Z" fill="url(#pot)"/><rect x="318" y="552" width="388" height="74" rx="26" fill="#EE9468"/><rect x="340" y="560" width="344" height="14" rx="7" fill="#F6AC84" opacity="0.8"/>
+  <ellipse cx="420.0" cy="730.0" rx="25.0" ry="15.0" fill="#F59C82" opacity="0.85"/>
+  <ellipse cx="604.0" cy="730.0" rx="25.0" ry="15.0" fill="#F59C82" opacity="0.85"/>
+  <ellipse cx="462.0" cy="700" rx="15.0" ry="20.0" fill="#2B1D14"/>
+  <ellipse cx="562.0" cy="700" rx="15.0" ry="20.0" fill="#2B1D14"/>
+  <circle cx="467.0" cy="693.0" r="5.5" fill="#fff"/>
+  <circle cx="567.0" cy="693.0" r="5.5" fill="#fff"/>
+  <path d="M 488.0 734.0 Q 512 758.0 536.0 734.0" fill="none" stroke="#2B1D14" stroke-width="11.0" stroke-linecap="round"/></g></svg>

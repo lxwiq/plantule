@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/plantule.png" width="128" alt="Plantule"></p>
+
 # Plantule
 
 App Android pour s'occuper de ses plantes : ce qu'il faut faire aujourd'hui, un rappel chaque matin, et l'historique de chaque plante.
