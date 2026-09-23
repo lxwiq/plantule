@@ -6,8 +6,8 @@
 import { randomUUID } from 'expo-crypto';
 
 import { speciesKey, validateCareSheet, type CareSheet } from '@/lib/care-sheet';
-import { toDateString, today } from '@/lib/dates';
-import { nextDueAfterDone, postpone, suggestedInterval } from '@/lib/schedule';
+import { parseDate, toDateString, today } from '@/lib/dates';
+import { firstDueOn, nextDueAfterDone, postpone, suggestedInterval } from '@/lib/schedule';
 
 import { database as db } from './database';
 import { notify } from './live';
@@ -373,19 +373,31 @@ export function getTask(id: string): Task | null {
   return row ? toTask(row) : null;
 }
 
+/** When a task last done on `day` was done: now if today, else midday (only the day is known). */
+function doneAt(day: string, at: string): string {
+  if (day === today()) return at;
+  const date = parseDate(day);
+  date.setHours(12);
+  return date.toISOString();
+}
+
 export function createTask(plantId: string, input: TaskInput): Task {
   const id = randomUUID();
   const at = now();
+  const day = today();
+  const lastDoneOn = input.last_done_on && input.last_done_on <= day ? input.last_done_on : null;
   db().runSync(
-    `insert into tasks (id, plant_id, kind, label, interval_days, winter_factor, next_due_on, created_at, updated_at)
-     values (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `insert into tasks (id, plant_id, kind, label, interval_days, winter_factor, last_done_at, next_due_on,
+       created_at, updated_at)
+     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     plantId,
     input.kind,
     clean(input.label),
     input.interval_days,
     input.winter_factor,
-    input.next_due_on ?? today(),
+    lastDoneOn ? doneAt(lastDoneOn, at) : null,
+    input.next_due_on ?? firstDueOn(lastDoneOn, input.interval_days, input.winter_factor, day),
     at,
     at,
   );

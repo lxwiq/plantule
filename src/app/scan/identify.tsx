@@ -5,6 +5,7 @@ import { Pressable, View } from 'react-native';
 
 import { identifyPlant, isAbortError, modelIsWarm } from '@/ai/plant-ai';
 import { AiProgress } from '@/components/ai-progress';
+import { PhotoFindingsSection } from '@/components/photo-findings';
 import {
   Banner,
   Button,
@@ -16,7 +17,14 @@ import {
   Text,
   TextField,
 } from '@/components/ui';
-import { confidenceLevel, confidenceText, type Identification, type SpeciesCandidate } from '@/lib/identification';
+import {
+  confidenceLevel,
+  confidenceText,
+  hasFindings,
+  serializeFindings,
+  type Identification,
+  type SpeciesCandidate,
+} from '@/lib/identification';
 import { closeScreen } from '@/lib/navigation';
 import { radius, spacing, touchTarget, useTheme } from '@/theme';
 
@@ -80,15 +88,19 @@ function Identify({ photoUri }: { photoUri: string }) {
     setRun((n) => n + 1);
   };
 
+  // What the photo shows besides the species (pot, repotting), passed on to the new plant.
+  const photo = step.kind === 'results' ? step.identification.photo : null;
+  const findings = photo && hasFindings(photo) ? serializeFindings(photo) : undefined;
+
   const confirm = (candidate: SpeciesCandidate) =>
     router.push({
       pathname: '/scan/sheet',
-      params: { photoUri, species: candidate.scientific_name, commonName: candidate.common_name },
+      params: { photoUri, species: candidate.scientific_name, commonName: candidate.common_name, findings },
     });
 
   const confirmTyped = () => {
     const species = typed.trim();
-    if (species) router.push({ pathname: '/scan/sheet', params: { photoUri, species } });
+    if (species) router.push({ pathname: '/scan/sheet', params: { photoUri, species, findings } });
   };
 
   const candidates = step.kind === 'results' ? step.identification.candidates : [];
@@ -142,6 +154,7 @@ function Identify({ photoUri }: { photoUri: string }) {
           <Text variant="caption" tone="secondary" style={{ paddingHorizontal: spacing.xs }}>
             Le modèle peut se tromper, même quand il a l’air sûr de lui. Vérifie avant de confirmer.
           </Text>
+          {photo && <PhotoFindingsSection findings={photo} />}
           <View style={{ gap: spacing.sm }}>
             <Button
               title="Confirmer cette espèce"

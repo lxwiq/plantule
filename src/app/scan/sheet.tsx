@@ -3,12 +3,19 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
+import { useModelStatus } from '@/ai';
 import { generateCareSheet, isAbortError, modelIsWarm } from '@/ai/plant-ai';
 import { AiProgress } from '@/components/ai-progress';
-import { CareSheetSections, SHEET_DISCLAIMER, SpeciesNames } from '@/components/care-sheet-view';
+import {
+  CareSheetSections,
+  SHEET_DISCLAIMER,
+  SHEET_INCOMPLETE,
+  SpeciesNames,
+} from '@/components/care-sheet-view';
 import { Banner, Button, EmptyState, icons, Screen } from '@/components/ui';
 import { usePlant, useSpeciesSheet } from '@/db/hooks';
 import { findSpeciesSheet, saveSpeciesSheet, setPlantSpeciesSheet } from '@/db/repo';
+import { isSheetComplete } from '@/lib/care-sheet';
 import { closeScreen } from '@/lib/navigation';
 import { radius, spacing, useTheme } from '@/theme';
 
@@ -20,6 +27,10 @@ type Params = {
   photoUri?: string;
   /** From a plant's screen: the plant to link the sheet to, instead of creating one. */
   plantId?: string;
+  /** Scan: what the photo shows besides the species (`serializeFindings`), passed on to the new plant. */
+  findings?: string;
+  /** "1": write the sheet again even when the phone has one, and replace it. */
+  refresh?: string;
 };
 
 function errorText(error: unknown) {
@@ -32,7 +43,7 @@ function errorText(error: unknown) {
  * or link the sheet to an existing one.
  */
 export default function SpeciesSheetScreen() {
-  const { species, commonName, photoUri, plantId } = useLocalSearchParams<Params>();
+  const { species, commonName, photoUri, plantId, findings, refresh } = useLocalSearchParams<Params>();
   if (!species) {
     return (
       <Screen>
@@ -45,7 +56,14 @@ export default function SpeciesSheetScreen() {
     );
   }
   return (
-    <SheetFlow species={species} commonName={commonName || null} photoUri={photoUri} plantId={plantId} />
+    <SheetFlow
+      species={species}
+      commonName={commonName || null}
+      photoUri={photoUri}
+      plantId={plantId}
+      findings={findings}
+      refresh={refresh === '1'}
+    />
   );
 }
 
@@ -54,12 +72,22 @@ type SheetFlowProps = {
   commonName: string | null;
   photoUri?: string;
   plantId?: string;
+  findings?: string;
+  refresh: boolean;
 };
 
-function SheetFlow({ species, commonName, photoUri, plantId }: SheetFlowProps) {
+function SheetFlow({ species, commonName, photoUri, plantId, findings, refresh }: SheetFlowProps) {
   const theme = useTheme();
+  const status = useModelStatus();
   const plant = usePlant(plantId ?? '');
-  const [sheetId, setSheetId] = useState(() => findSpeciesSheet(species)?.id ?? null);
+  // The sheet already on the phone: shown as is, or kept while a new one is written.
+  const [stored] = useState(() => findSpeciesSheet(species));
+  const storedId = stored?.id ?? null;
+  // Null while the model writes one (saved over the stored one).
+  const [sheetId, setSheetId] = useState(refresh ? null : storedId);
+  // Written again under the stored names: what was typed may only be a common name.
+  const scientificName = stored?.scientific_name ?? species;
+  const name = stored?.common_name ?? commonName;
   const sheet = useSpeciesSheet(sheetId);
   const [error, setError] = useState<string | null>(null);
   const [run, setRun] = useState(0);
@@ -69,7 +97,7 @@ function SheetFlow({ species, commonName, photoUri, plantId }: SheetFlowProps) {
     if (sheetId) return;
     // Cancelled when leaving the screen.
     const controller = new AbortController();
-    generateCareSheet({ scientificName: species, commonName }, { signal: controller.signal })
+    generateCareSheet({ scientificName, commonName: name }, { signal: controller.signal })
       .then((generated) => saveSpeciesSheet(generated, 'ai').id)
       .then(setSheetId, (e) => {
         // Cancelled on purpose: nothing to say.
@@ -77,19 +105,35 @@ function SheetFlow({ species, commonName, photoUri, plantId }: SheetFlowProps) {
         setError(isAbortError(e) ? 'La rédaction a été interrompue.' : errorText(e));
       });
     return () => controller.abort();
-  }, [sheetId, species, commonName, run]);
+  }, [sheetId, scientificName, name, run]);
 
   const retry = () => {
     setError(null);
     setRun((n) => n + 1);
   };
 
+  // An older sheet without substrate, pot, problems…: the model writes it again.
+  const complete = () => {
+    setError(null);
+    setSheetId(null);
+  };
+
+  // Back to the stored sheet when the new one is cancelled or fails. Scan only: from a
+  // plant's screen, leaving is enough (the plant keeps its sheet).
+  const keepStored =
+    storedId && !plantId
+      ? () => {
+          setError(null);
+          setSheetId(storedId);
+        }
+      : null;
+
   const createPlant = (sheetIdToUse: string | null) =>
     router.push({
       pathname: '/plant/new',
       params: sheetIdToUse
-        ? { sheetId: sheetIdToUse, photoUri }
-        : { species, nickname: commonName ?? undefined, photoUri },
+        ? { sheetId: sheetIdToUse, photoUri, findings }
+        : { species, nickname: commonName ?? undefined, photoUri, findings },
     });
 
   const linkToPlant = (id: string) => {
@@ -112,7 +156,7 @@ function SheetFlow({ species, commonName, photoUri, plantId }: SheetFlowProps) {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
           {photo}
           <View style={{ flex: 1 }}>
-            <SpeciesNames sheet={{ common_name: commonName ?? species, scientific_name: species }} />
+            <SpeciesNames sheet={{ common_name: name ?? scientificName, scientific_name: scientificName }} />
           </View>
         </View>
 
@@ -123,6 +167,8 @@ function SheetFlow({ species, commonName, photoUri, plantId }: SheetFlowProps) {
             </Banner>
             {plantId ? (
               <Button title="Retour" variant="text" onPress={closeScreen} />
+            ) : keepStored ? (
+              <Button title="Garder l’ancienne fiche" variant="tonal" onPress={keepStored} />
             ) : (
               <Button title="Continuer sans fiche" variant="tonal" onPress={() => createPlant(null)} />
             )}
@@ -130,14 +176,14 @@ function SheetFlow({ species, commonName, photoUri, plantId }: SheetFlowProps) {
         ) : (
           <AiProgress
             title="Rédaction de la fiche d’entretien…"
-            detail="Lumière, arrosage, toxicité : le modèle écrit les conseils sur ton téléphone."
+            detail="Lumière, arrosage, rempotage, problèmes fréquents : le modèle écrit les conseils sur ton téléphone."
             slowTitle={warm ? 'Encore un peu de patience…' : 'Préparation du modèle…'}
             slowDetail={
               warm
-                ? 'Le modèle écrit la fiche mot à mot : ça peut prendre une à deux minutes. Garde l’app ouverte.'
-                : 'Le modèle se charge en mémoire avant d’écrire la fiche : ça peut prendre plus d’une minute. Garde l’app ouverte.'
+                ? 'Le modèle écrit la fiche mot à mot : ça peut prendre quelques minutes. Garde l’app ouverte.'
+                : 'Le modèle se charge en mémoire avant d’écrire la fiche : ça peut prendre quelques minutes. Garde l’app ouverte.'
             }
-            onCancel={closeScreen}
+            onCancel={keepStored ?? closeScreen}
           />
         )}
       </Screen>
@@ -155,9 +201,24 @@ function SheetFlow({ species, commonName, photoUri, plantId }: SheetFlowProps) {
 
       <Banner icon={icons.sparkles}>{SHEET_DISCLAIMER}</Banner>
 
+      {!isSheetComplete(sheet.data) && status.state === 'ready' && (
+        <Banner
+          icon={icons.sparkles}
+          title="Fiche à compléter"
+          action={{ label: 'Compléter la fiche', onPress: complete }}>
+          {SHEET_INCOMPLETE}
+        </Banner>
+      )}
+
       {plantId ? (
         <Button
-          title={plant ? `Ajouter à ${plant.nickname}` : 'Ajouter à la plante'}
+          title={
+            plant?.species_sheet_id === sheet.id
+              ? 'Terminé'
+              : plant
+                ? `Ajouter à ${plant.nickname}`
+                : 'Ajouter à la plante'
+          }
           icon={icons.check}
           onPress={() => linkToPlant(sheet.id)}
         />

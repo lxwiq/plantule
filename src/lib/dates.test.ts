@@ -6,7 +6,9 @@ import {
   formatDue,
   formatInterval,
   formatLongDate,
+  formatRelativeDay,
   formatRelativeTime,
+  formatShortDate,
 } from './dates';
 
 describe('calendar dates', () => {
@@ -43,6 +45,20 @@ describe('due dates', () => {
     expect(formatInterval(14)).toBe('toutes les 2 semaines');
     expect(formatInterval(10)).toBe('tous les 10 jours');
   });
+
+  it('writes long intervals in months or years when they are close to whole ones', () => {
+    expect(formatInterval(30)).toBe('tous les mois');
+    expect(formatInterval(90)).toBe('tous les 3 mois');
+    expect(formatInterval(270)).toBe('tous les 9 mois');
+    expect(formatInterval(365)).toBe('tous les ans');
+    expect(formatInterval(730)).toBe('tous les 2 ans');
+    expect(formatInterval(45)).toBe('tous les 45 jours');
+  });
+
+  it('writes the first of the month as "1er"', () => {
+    expect(formatShortDate('2001-03-01')).toBe('1er mars 2001');
+    expect(formatShortDate('2001-03-02')).toBe('2 mars 2001');
+  });
 });
 
 describe('relative times', () => {
@@ -53,5 +69,16 @@ describe('relative times', () => {
     expect(formatRelativeTime(new Date(2026, 8, 23, 17, 45).toISOString(), now)).toBe('il y a 15 min');
     expect(formatRelativeTime(new Date(2026, 8, 23, 9, 5).toISOString(), now)).toBe("aujourd'hui à 9:05");
     expect(formatRelativeTime(new Date(2026, 8, 22, 9, 5).toISOString(), now)).toBe('hier à 9:05');
+  });
+});
+
+describe('relative days', () => {
+  it('describes a past day without the time', () => {
+    const today = '2026-09-23';
+    expect(formatRelativeDay('2026-09-23', today)).toBe("aujourd'hui");
+    expect(formatRelativeDay('2026-09-22', today)).toBe('hier');
+    expect(formatRelativeDay('2026-09-21', today)).toBe('avant-hier');
+    expect(formatRelativeDay('2026-09-19', today)).toBe('il y a 4 jours');
+    expect(formatRelativeDay('2026-09-10', today)).toBe('le 10 septembre');
   });
 });

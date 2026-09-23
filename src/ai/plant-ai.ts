@@ -197,12 +197,23 @@ const IDENTIFY_PROMPT = [
   '- common_name : son nom commun en français ;',
   '- confidence : ta confiance, entre 0 et 1.',
   'Si tu hésites, baisse la confiance plutôt que d’inventer.',
+  'Dans photo, note seulement ce que tu vois vraiment :',
+  '- pot.material : terracotta (terre cuite), plastic (plastique), ceramic (céramique), other (autre matière), none (plantée en pleine terre) ou unknown (pot caché ou hors de la photo) ;',
+  '- pot.diameter_cm : diamètre du haut du pot en cm, estimé d’après la taille des feuilles, ou 0 si tu ne peux pas l’estimer ;',
+  '- repot.needed : yes si des racines sortent du pot ou couvrent la terre, ou si la plante est bien trop grande pour son pot ; no si le pot lui va ; unknown si la photo ne permet pas de le dire ;',
+  '- repot.reason : ce qui te le fait dire, en quelques mots, ou "" ;',
+  '- observations : jusqu’à 3 constats utiles pour son entretien, en quelques mots chacun (feuilles jaunies, taches, tiges étirées…), ou une liste vide si elle a l’air en forme.',
   'Si la photo ne montre pas de plante, mets is_plant à false et une liste vide.',
   'Réponds uniquement avec un objet JSON de cette forme :',
-  '{"is_plant": true, "candidates": [{"scientific_name": "…", "common_name": "…", "confidence": 0.6}]}',
+  '{"is_plant": true, "candidates": [{"scientific_name": "…", "common_name": "…", "confidence": 0.6}], "photo": {"pot": {"material": "…", "diameter_cm": 0}, "repot": {"needed": "…", "reason": "…"}, "observations": ["…"]}}',
 ].join('\n');
 
-/** Asks the model which species the photo shows. Rejects with a French message, or an AbortError. */
+/**
+ * Asks the model which species the photo shows, and what it sees of the pot
+ * and the plant's state. Only the species can make it ask again: the rest
+ * reads as unknown when garbled. Rejects with a French message, or an
+ * AbortError.
+ */
 export function identifyPlant(photoUri: string, { signal }: Options = {}): Promise<Identification> {
   return generateValid(
     {
@@ -210,7 +221,8 @@ export function identifyPlant(photoUri: string, { signal }: Options = {}): Promi
       prompt: IDENTIFY_PROMPT,
       imageUri: photoUri,
       jsonSchema: IDENTIFICATION_SCHEMA,
-      maxTokens: 400,
+      // About 200 tokens expected; the schema caps the answer near 400.
+      maxTokens: 600,
       signal,
     },
     validateIdentification,
@@ -222,6 +234,7 @@ export function identifyPlant(photoUri: string, { signal }: Options = {}): Promi
 
 const SHEET_SYSTEM =
   'Tu es un jardinier expérimenté qui conseille des particuliers en France. ' +
+  'Tu écris en français, en tutoyant, avec des phrases courtes. ' +
   'Tu réponds uniquement avec un objet JSON valide, sans texte autour.';
 
 function sheetPrompt({ scientificName, commonName }: SpeciesQuery): string {
@@ -239,11 +252,15 @@ function sheetPrompt({ scientificName, commonName }: SpeciesQuery): string {
     '- toxicity : cats et dogs, chacun toxic, non_toxic ou unknown ;',
     '- fertilizing : interval_days, jours entre deux apports d’engrais au printemps et en été ;',
     '- misting : interval_days, jours entre deux brumisations, ou 0 si elle n’a pas besoin d’être brumisée ;',
-    '- repotting : interval_days, jours entre deux rempotages (en général 365 à 730) ;',
-    '- tips : 2 à 5 conseils courts en français, sans répéter les champs précédents.',
+    '- repotting : interval_days, jours entre deux rempotages (en général 365 à 730) ; advice, quand et comment la rempoter, en une phrase ;',
+    '- substrate : le terreau qui lui convient, en une phrase courte ;',
+    '- pot : le pot qui lui convient (matière, drainage), en une phrase courte ;',
+    '- propagation : comment la multiplier (bouture, division…), en une phrase, ou "" si c’est difficile à la maison ;',
+    '- problems : 1 à 3 problèmes fréquents, chacun avec symptom (ce qu’on voit), cause et fix (que faire), en quelques mots ;',
+    '- tips : 2 à 4 conseils courts, sans répéter les champs précédents.',
     'Les intervalles sont des nombres entiers de jours, entre 1 et 730.',
     'Réponds uniquement avec un objet JSON de cette forme (valeurs d’exemple, à adapter à la plante) :',
-    '{"common_name": "…", "scientific_name": "…", "light": "bright_indirect", "watering": {"interval_days": 7, "winter_factor": 1.5, "advice": "…"}, "humidity": "medium", "temperature": {"min_c": 15, "max_c": 28}, "toxicity": {"cats": "unknown", "dogs": "unknown"}, "fertilizing": {"interval_days": 14}, "misting": {"interval_days": 0}, "repotting": {"interval_days": 730}, "tips": ["…", "…"]}',
+    '{"common_name": "…", "scientific_name": "…", "light": "bright_indirect", "watering": {"interval_days": 7, "winter_factor": 1.5, "advice": "…"}, "humidity": "medium", "temperature": {"min_c": 15, "max_c": 28}, "toxicity": {"cats": "unknown", "dogs": "unknown"}, "fertilizing": {"interval_days": 14}, "misting": {"interval_days": 0}, "repotting": {"interval_days": 730, "advice": "…"}, "substrate": "…", "pot": "…", "propagation": "…", "problems": [{"symptom": "…", "cause": "…", "fix": "…"}], "tips": ["…", "…"]}',
   ].join('\n');
 }
 
@@ -258,10 +275,12 @@ export async function generateCareSheet(species: SpeciesQuery, { signal }: Optio
       system: SHEET_SYSTEM,
       prompt: sheetPrompt(species),
       jsonSchema: CARE_SHEET_SCHEMA,
-      maxTokens: 1000,
+      // About 500 tokens expected; the schema caps the answer near 1000.
+      maxTokens: 1400,
       signal,
     },
-    validateCareSheet,
+    // A new sheet must have every field, unlike the older ones read back from the database.
+    (value) => validateCareSheet(value, { strict: true }),
     'Le modèle n’a pas réussi à rédiger la fiche d’entretien. Réessaie dans un moment.',
   );
   if (!species.commonName) return sheet;

@@ -33,6 +33,21 @@ export function nextDueAfterDone(doneOn: string, intervalDays: number, winterFac
 }
 
 /**
+ * First due date of a new task, from the day it was last done before it was
+ * added: one interval later, but never before today. Unknown means today.
+ */
+export function firstDueOn(
+  lastDoneOn: string | null,
+  intervalDays: number,
+  winterFactor: number,
+  today: string,
+): string {
+  if (!lastDoneOn) return today;
+  const next = nextDueAfterDone(lastDoneOn, intervalDays, winterFactor);
+  return next > today ? next : today;
+}
+
+/**
  * Due date after pushing a task back by `days`, counted from today, or from
  * the current due date if that is later.
  */

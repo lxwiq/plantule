@@ -1,9 +1,10 @@
 /**
  * A pretend model for development (browser, Expo Go), turned on with
  * EXPO_PUBLIC_FAKE_AI=1. It answers like the real one would, after a short
- * delay: a Monstera with two look-alikes for any photo, and a care sheet for
- * the species named in the prompt. Deleting it from the model card and
- * downloading it again shows the "not ready" states.
+ * delay: a Monstera with two look-alikes for any photo (in a terracotta pot
+ * that needs repotting), and a care sheet for the species named in the
+ * prompt. Deleting it from the model card and downloading it again shows the
+ * "not ready" states.
  */
 
 import type { CareSheet } from '@/lib/care-sheet';
@@ -47,6 +48,11 @@ const IDENTIFICATION: Identification = {
     { scientific_name: 'Thaumatophyllum bipinnatifidum', common_name: 'Philodendron selloum', confidence: 0.11 },
     { scientific_name: 'Rhaphidophora tetrasperma', common_name: 'Mini monstera', confidence: 0.05 },
   ],
+  photo: {
+    pot: { material: 'terracotta', diameter_cm: 17 },
+    repot: { needed: 'yes', reason: 'Des racines sortent par le trou du pot.' },
+    observations: ['Feuilles du bas un peu jaunies', 'Terre sèche en surface'],
+  },
 };
 
 const SHEETS: CareSheet[] = [
@@ -64,12 +70,34 @@ const SHEETS: CareSheet[] = [
     toxicity: { cats: 'toxic', dogs: 'toxic' },
     fertilizing: { interval_days: 14 },
     misting: { interval_days: 4 },
-    repotting: { interval_days: 730 },
+    repotting: {
+      interval_days: 730,
+      advice: 'Au printemps, quand les racines sortent du pot, dans un pot 3 à 5 cm plus large.',
+    },
+    substrate: 'Terreau pour plantes vertes mélangé à un tiers d’écorce de pin et de perlite.',
+    pot: 'Pot percé et lourd, assez stable pour porter ses grandes feuilles et un tuteur.',
+    propagation: 'Bouture une tige avec un nœud et une racine aérienne, dans l’eau ou du terreau humide.',
+    problems: [
+      {
+        symptom: 'Feuilles qui jaunissent',
+        cause: 'Trop d’eau, ou une soucoupe restée pleine',
+        fix: 'Espace les arrosages et vide la soucoupe.',
+      },
+      {
+        symptom: 'Nouvelles feuilles sans découpes',
+        cause: 'Manque de lumière',
+        fix: 'Rapproche-la d’une fenêtre lumineuse.',
+      },
+      {
+        symptom: 'Bords des feuilles bruns et secs',
+        cause: 'Air trop sec',
+        fix: 'Brumise-la et éloigne-la des radiateurs.',
+      },
+    ],
     tips: [
       'Installe un tuteur en mousse pour guider ses racines aériennes.',
       'Dépoussière ses grandes feuilles avec un chiffon humide.',
       'Évite le soleil direct de l’après-midi, qui brûle les feuilles.',
-      'Des feuilles qui jaunissent signalent souvent un excès d’eau.',
     ],
   },
   {
@@ -86,9 +114,27 @@ const SHEETS: CareSheet[] = [
     toxicity: { cats: 'toxic', dogs: 'toxic' },
     fertilizing: { interval_days: 21 },
     misting: null,
-    repotting: { interval_days: 730 },
+    repotting: {
+      interval_days: 730,
+      advice: 'Au printemps, dans un pot plus large ; une fois adulte, change juste le dessus du terreau.',
+    },
+    substrate: 'Terreau pour plantes vertes bien drainant, enrichi d’un peu de compost.',
+    pot: 'Grand pot lourd et percé, en terre cuite ou en céramique, pour qu’il ne bascule pas.',
+    propagation: 'Divise la touffe au rempotage, ou replante un rejet qui pousse au pied.',
+    problems: [
+      {
+        symptom: 'Feuilles du bas qui jaunissent',
+        cause: 'Excès d’eau, ou vieillissement normal',
+        fix: 'Laisse sécher le terreau en surface et coupe les feuilles abîmées.',
+      },
+      {
+        symptom: 'Taches brunes et sèches',
+        cause: 'Coup de soleil direct',
+        fix: 'Protège-le du soleil de l’après-midi.',
+      },
+    ],
     tips: [
-      'Il prend vite de la place : prévois un grand pot stable.',
+      'Il prend vite de la place : prévois-lui un coin spacieux.',
       'Tourne le pot d’un quart de tour chaque mois pour qu’il pousse droit.',
     ],
   },
@@ -106,11 +152,33 @@ const SHEETS: CareSheet[] = [
     toxicity: { cats: 'toxic', dogs: 'toxic' },
     fertilizing: { interval_days: 14 },
     misting: { interval_days: 3 },
-    repotting: { interval_days: 365 },
+    repotting: {
+      interval_days: 365,
+      advice: 'Chaque printemps, dans un pot à peine plus grand : elle pousse vite.',
+    },
+    substrate: 'Terreau léger pour aroïdées : terreau, écorce de pin et perlite à parts égales.',
+    pot: 'Pot en plastique percé glissé dans un cache-pot, pour garder le terreau frais.',
+    propagation: 'Coupe une tige sous un nœud et mets-la dans un verre d’eau : elle racine en 2 à 3 semaines.',
+    problems: [
+      {
+        symptom: 'Bords des feuilles qui brunissent',
+        cause: 'Air trop sec',
+        fix: 'Brumise-la ou installe-la dans une pièce plus humide.',
+      },
+      {
+        symptom: 'Tiges longues et dégarnies',
+        cause: 'Manque de lumière',
+        fix: 'Rapproche-la de la lumière et taille les tiges.',
+      },
+      {
+        symptom: 'Fines toiles sous les feuilles',
+        cause: 'Araignées rouges',
+        fix: 'Douche le feuillage et augmente l’humidité.',
+      },
+    ],
     tips: [
       'Grimpante : donne-lui un tuteur ou laisse-la retomber d’une étagère.',
       'Une salle de bain lumineuse lui convient très bien.',
-      'Taille les tiges trop longues pour la garder touffue.',
     ],
   },
 ];
@@ -131,7 +199,26 @@ function genericSheet(name: string): CareSheet {
     toxicity: { cats: 'unknown', dogs: 'unknown' },
     fertilizing: { interval_days: 21 },
     misting: null,
-    repotting: { interval_days: 730 },
+    repotting: {
+      interval_days: 730,
+      advice: 'Au printemps, quand les racines remplissent le pot, dans un pot 2 à 3 cm plus large.',
+    },
+    substrate: 'Terreau de qualité pour plantes d’intérieur, avec des billes d’argile au fond.',
+    pot: 'Pot percé, avec une soucoupe que tu vides après l’arrosage.',
+    // Shows the case of a species that does not propagate easily at home.
+    propagation: '',
+    problems: [
+      {
+        symptom: 'Feuilles jaunes et molles',
+        cause: 'Trop d’eau',
+        fix: 'Laisse sécher le dessus du terreau avant d’arroser.',
+      },
+      {
+        symptom: 'Feuilles sèches et cassantes',
+        cause: 'Manque d’eau ou air trop sec',
+        fix: 'Arrose plus régulièrement et éloigne-la du radiateur.',
+      },
+    ],
     tips: [
       'Place-la près d’une fenêtre, sans soleil brûlant.',
       'Réduis les arrosages en hiver, quand elle pousse moins.',

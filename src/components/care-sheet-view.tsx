@@ -3,18 +3,23 @@ import { View } from 'react-native';
 
 import { Icon, icons, ListSection, Text, type IconName } from '@/components/ui';
 import {
-  formatCareInterval,
   HUMIDITY_LABELS,
   toxicityText,
   winterText,
+  type CareProblem,
   type CareSheet,
 } from '@/lib/care-sheet';
+import { formatInterval } from '@/lib/dates';
 import { LIGHT_LABELS, TASK_KINDS } from '@/lib/labels';
 import { capitalize } from '@/lib/text';
 import { spacing, touchTarget, useTheme } from '@/theme';
 
 /** Goes with every sheet: the advice comes from a small model. */
 export const SHEET_DISCLAIMER = 'Conseils indicatifs, générés sur ton téléphone.';
+
+/** For a sheet `isSheetComplete` rejects, usually written before these parts existed. */
+export const SHEET_INCOMPLETE =
+  'Des parties manquent : conseils de rempotage, substrat, pot conseillé, problèmes fréquents… Le modèle peut réécrire la fiche en entier, sur ton téléphone.';
 
 type FactProps = {
   icon: IconName;
@@ -25,7 +30,8 @@ type FactProps = {
   warn?: boolean;
 };
 
-function Fact({ icon, label, value, detail, warn = false }: FactProps) {
+/** An icon, a small label, and what the sheet (or the photo) says. */
+export function Fact({ icon, label, value, detail, warn = false }: FactProps) {
   const theme = useTheme();
   return (
     <View
@@ -42,11 +48,11 @@ function Fact({ icon, label, value, detail, warn = false }: FactProps) {
         <Text variant="caption" tone="secondary">
           {label}
         </Text>
-        <Text variant="body" tone={warn ? 'warning' : 'default'}>
+        <Text variant="body" tone={warn ? 'warning' : 'default'} selectable>
           {value}
         </Text>
         {detail ? (
-          <Text variant="subhead" tone="secondary">
+          <Text variant="subhead" tone="secondary" selectable>
             {detail}
           </Text>
         ) : null}
@@ -55,14 +61,50 @@ function Fact({ icon, label, value, detail, warn = false }: FactProps) {
   );
 }
 
-function Tip({ text }: { text: string }) {
+function Tip({ text, icon = icons.leaf }: { text: string; icon?: IconName }) {
   const theme = useTheme();
   return (
     <View style={{ flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md }}>
-      <Icon name={icons.leaf} size={18} color={theme.primary} style={{ marginTop: 3 }} />
+      <Icon name={icon} size={18} color={theme.primary} style={{ marginTop: 3 }} />
       <Text variant="body" style={{ flex: 1 }} selectable>
         {text}
       </Text>
+    </View>
+  );
+}
+
+/** Lowercase after a colon, unless it starts an acronym ("UV"). */
+function afterColon(text: string) {
+  return /^\p{Lu}\p{Ll}/u.test(text) ? text.charAt(0).toLowerCase() + text.slice(1) : text;
+}
+
+/** "Cause : trop d’eau", the label standing out from the text. */
+function Labelled({ label, text }: { label: string; text: string }) {
+  return (
+    <Text variant="subhead" tone="secondary" selectable>
+      <Text variant="subhead" style={{ fontWeight: '600' }}>
+        {label} :{' '}
+      </Text>
+      {afterColon(text.trim())}
+    </Text>
+  );
+}
+
+/** What you see, then why and what to do. */
+function Problem({ problem }: { problem: CareProblem }) {
+  const theme = useTheme();
+  return (
+    <View
+      accessible
+      style={{ flexDirection: 'row', gap: spacing.lg, paddingHorizontal: spacing.lg, paddingVertical: spacing.md }}>
+      <Icon name={icons.problem} size={22} color={theme.textSecondary} style={{ marginTop: 2 }} />
+      <View style={{ flex: 1, gap: spacing.xs }}>
+        <Text variant="bodyStrong" selectable>
+          {capitalize(problem.symptom)}
+        </Text>
+        {problem.cause ? <Labelled label="Cause" text={problem.cause} /> : null}
+        {problem.fix ? <Labelled label="Solution" text={problem.fix} /> : null}
+      </View>
     </View>
   );
 }
@@ -94,7 +136,10 @@ type CareSheetSectionsProps = {
   footer?: string;
 };
 
-/** What a species needs, then the model's tips. */
+/**
+ * What a species needs, then its pot, the model's tips, common problems and
+ * cuttings. Parts a sheet does not have (older sheets) are left out.
+ */
 export function CareSheetSections({
   sheet,
   title = 'Entretien',
@@ -102,11 +147,17 @@ export function CareSheetSections({
   showNames = false,
   footer,
 }: CareSheetSectionsProps) {
-  const every = (days: number) => capitalize(formatCareInterval(days));
+  const every = (days: number) => capitalize(formatInterval(days));
   const watering = [every(sheet.watering.interval_days), winterText(sheet.watering.winter_factor)]
     .filter(Boolean)
     .join(', ');
   const { cats, dogs } = sheet.toxicity;
+  const substrate = sheet.substrate.trim();
+  const pot = sheet.pot.trim();
+  const propagation = sheet.propagation.trim();
+  const problems = sheet.problems.filter((problem) => problem.symptom.trim());
+  // The disclaimer goes under the last section shown.
+  const last = propagation ? 'propagation' : problems.length > 0 ? 'problems' : 'tips';
 
   return (
     <>
@@ -129,7 +180,7 @@ export function CareSheetSections({
         <Fact
           icon={icons.temperature}
           label="Température"
-          value={`Entre ${sheet.temperature.min_c} et ${sheet.temperature.max_c} °C`}
+          value={`Entre ${sheet.temperature.min_c} et ${sheet.temperature.max_c} °C`}
         />
         <Fact
           icon={icons.pets}
@@ -147,13 +198,38 @@ export function CareSheetSections({
           label="Brumisation"
           value={sheet.misting ? every(sheet.misting.interval_days) : 'Pas nécessaire'}
         />
-        <Fact icon={TASK_KINDS.repot.icon} label="Rempotage" value={every(sheet.repotting.interval_days)} />
       </ListSection>
-      <ListSection title="Conseils" footer={footer}>
+
+      <ListSection title="Pot et rempotage">
+        <Fact
+          icon={TASK_KINDS.repot.icon}
+          label="Rempotage"
+          value={every(sheet.repotting.interval_days)}
+          detail={sheet.repotting.advice.trim() || undefined}
+        />
+        {substrate ? <Fact icon={icons.substrate} label="Substrat conseillé" value={substrate} /> : null}
+        {pot ? <Fact icon={icons.pot} label="Pot conseillé" value={pot} /> : null}
+      </ListSection>
+
+      <ListSection title="Conseils" footer={last === 'tips' ? footer : undefined}>
         {sheet.tips.map((tip, index) => (
           <Tip key={index} text={tip} />
         ))}
       </ListSection>
+
+      {problems.length > 0 && (
+        <ListSection title="Problèmes fréquents" footer={last === 'problems' ? footer : undefined}>
+          {problems.map((problem, index) => (
+            <Problem key={index} problem={problem} />
+          ))}
+        </ListSection>
+      )}
+
+      {propagation ? (
+        <ListSection title="Bouturage" footer={last === 'propagation' ? footer : undefined}>
+          <Tip icon={icons.propagation} text={propagation} />
+        </ListSection>
+      ) : null}
     </>
   );
 }

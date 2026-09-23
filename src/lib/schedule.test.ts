@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import {
   effectiveInterval,
+  firstDueOn,
   isWinter,
   nextDueAfterDone,
   postpone,
@@ -56,5 +57,25 @@ describe('soil still wet', () => {
 
   it('caps the suggestion', () => {
     expect(suggestedInterval(700, 3, 60)).toBe(730);
+  });
+});
+
+describe('first due date of a new task', () => {
+  it('is today when the last time is unknown', () => {
+    expect(firstDueOn(null, 7, 1.5, '2026-09-23')).toBe('2026-09-23');
+  });
+
+  it('counts one interval from the last time', () => {
+    // Watered two days ago, every 7 days: due in 5 days.
+    expect(firstDueOn('2026-09-21', 7, 1.5, '2026-09-23')).toBe('2026-09-28');
+    expect(firstDueOn('2026-09-23', 7, 1.5, '2026-09-23')).toBe('2026-09-30');
+  });
+
+  it('is never overdue', () => {
+    expect(firstDueOn('2026-09-01', 7, 1.5, '2026-09-23')).toBe('2026-09-23');
+  });
+
+  it('applies the winter factor', () => {
+    expect(firstDueOn('2026-12-01', 7, 1.5, '2026-12-02')).toBe('2026-12-12');
   });
 });

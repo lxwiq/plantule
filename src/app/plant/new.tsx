@@ -3,6 +3,8 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert, View } from 'react-native';
 
+import { LastWateringField } from '@/components/last-watering-field';
+import { findingsNotes, repotReason } from '@/components/photo-findings';
 import { draftToInput, PlantFields, plantDraft } from '@/components/plant-form';
 import {
   Button,
@@ -16,11 +18,13 @@ import {
 } from '@/components/ui';
 import { useCurrentPlace, useRooms, useSpeciesSheet } from '@/db/hooks';
 import { addPhoto, createPlant, createTask } from '@/db/repo';
-import type { TaskInput } from '@/db/types';
-import { careSheetTasks, formatCareInterval, winterText } from '@/lib/care-sheet';
-import { formatDue, today } from '@/lib/dates';
-import { TASK_KINDS } from '@/lib/labels';
+import type { Light, Room, TaskInput } from '@/db/types';
+import { careSheetTasks, winterText } from '@/lib/care-sheet';
+import { formatDue, formatInterval, today } from '@/lib/dates';
+import { parseFindings, potText } from '@/lib/identification';
+import { LIGHT_LABELS, TASK_KINDS } from '@/lib/labels';
 import { choosePhotoSource, pickPhoto } from '@/lib/pick-photo';
+import { firstDueOn } from '@/lib/schedule';
 import { capitalize } from '@/lib/text';
 import { radius, spacing } from '@/theme';
 
@@ -33,11 +37,13 @@ type Params = {
   species?: string;
   nickname?: string;
   photoUri?: string;
+  /** What the photo shows besides the species (`serializeFindings`): pot, repotting, notes. */
+  findings?: string;
 };
 
 /** "Tous les 7 jours, ×1,5 en hiver · à partir d’aujourd’hui" */
 function suggestionText(task: TaskInput) {
-  const rhythm = [capitalize(formatCareInterval(task.interval_days)), winterText(task.winter_factor)]
+  const rhythm = [capitalize(formatInterval(task.interval_days)), winterText(task.winter_factor)]
     .filter(Boolean)
     .join(', ');
   const start =
@@ -45,6 +51,39 @@ function suggestionText(task: TaskInput) {
       ? 'à partir d’aujourd’hui'
       : `première fois ${formatDue(task.next_due_on)}`;
   return `${rhythm} · ${start}`;
+}
+
+/** The watering task, starting one interval after the last watering when it is known. */
+function withLastWatering(task: TaskInput, lastWatered: string | null): TaskInput {
+  if (task.kind !== 'water') return task;
+  return {
+    ...task,
+    last_done_on: lastWatered,
+    next_due_on: firstDueOn(lastWatered, task.interval_days, task.winter_factor, today()),
+  };
+}
+
+/** "Salon", "Salon et Bureau", "Salon, Cuisine et Bureau" */
+function listText(items: string[]) {
+  return items.length <= 1
+    ? (items[0] ?? '')
+    : `${items.slice(0, -1).join(', ')} et ${items[items.length - 1]}`;
+}
+
+/** The light a species likes, and the rooms of the place that get it. */
+function lightHint(light: Light, rooms: Room[]) {
+  const label = LIGHT_LABELS[light];
+  const text = `Lumière conseillée : ${label.charAt(0).toLowerCase()}${label.slice(1)}.`;
+  const matching = rooms.filter((room) => room.light === light).map((room) => room.name);
+  if (matching.length === 0) return text;
+  const lead = matching.length > 1 ? 'Pièces avec cette exposition' : 'Pièce avec cette exposition';
+  return `${text} ${lead} : ${listText(matching)}.`;
+}
+
+/** "Conseillé : Terre cuite percée…", under a field, when the sheet has advice for it. */
+function adviceHint(advice: string | undefined) {
+  const text = advice?.trim();
+  return text ? `Conseillé : ${text}` : undefined;
 }
 
 function errorText(error: unknown) {
@@ -57,20 +96,49 @@ export default function NewPlant() {
   const rooms = useRooms(place.id);
   const sheet = useSpeciesSheet(params.sheetId);
   const fromScan = !!(params.sheetId || params.species || params.photoUri);
+  // Rough estimates from the photo, prefilled below for the user to check.
+  const [findings] = useState(() => parseFindings(params.findings));
+  // Shown on the repotting reminder: why the photo says to repot, or not.
+  const repotNote =
+    findings?.repot.needed === 'yes'
+      ? (repotReason(findings) ?? 'À rempoter, d’après la photo')
+      : repotReason(findings);
 
   const [draft, setDraft] = useState(() => ({
     ...plantDraft(null, params.roomId),
     nickname: capitalize(sheet?.common_name ?? params.nickname ?? ''),
     species: sheet?.scientific_name ?? params.species ?? '',
+    pot: (findings && potText(findings.pot)) ?? '',
+    // Without a sheet, no repotting reminder: the notes keep the advice.
+    notes: findingsNotes(findings, { withRepot: !sheet }),
   }));
   const [photoUri, setPhotoUri] = useState<string | null>(params.photoUri ?? null);
   const [watering, setWatering] = useState(true);
   const [waterEvery, setWaterEvery] = useState(TASK_KINDS.water.defaultInterval);
+  const [lastWatered, setLastWatered] = useState<string | null>(null);
   // With a species sheet, the care it suggests replaces the single watering reminder.
-  const [suggested, setSuggested] = useState(() =>
-    sheet ? careSheetTasks(sheet.data).map((task) => ({ task, enabled: true })) : [],
-  );
+  // Repotting comes first thing when the photo shows it is needed.
+  const [suggested, setSuggested] = useState(() => {
+    if (!sheet) return [];
+    const tasks = careSheetTasks(sheet.data, today(), { repotNow: findings?.repot.needed === 'yes' });
+    return tasks.map((task) => ({ task, enabled: true }));
+  });
   const [saving, setSaving] = useState(false);
+
+  const waterTask = withLastWatering(
+    {
+      kind: 'water',
+      label: null,
+      interval_days: waterEvery,
+      winter_factor: TASK_KINDS.water.defaultWinterFactor,
+    },
+    lastWatered,
+  );
+  const suggestedTasks = suggested.map((item) => ({
+    ...item,
+    task: withLastWatering(item.task, lastWatered),
+  }));
+  const suggestsWatering = suggestedTasks.some((item) => item.enabled && item.task.kind === 'water');
 
   const canSave = draft.nickname.trim().length > 0 && !saving;
 
@@ -87,14 +155,9 @@ export default function NewPlant() {
     setSaving(true);
     const plant = createPlant(place.id, { ...draftToInput(draft), species_sheet_id: sheet?.id ?? null });
     if (sheet) {
-      suggested.filter((s) => s.enabled).forEach((s) => createTask(plant.id, s.task));
+      suggestedTasks.filter((s) => s.enabled).forEach((s) => createTask(plant.id, s.task));
     } else if (watering) {
-      createTask(plant.id, {
-        kind: 'water',
-        label: null,
-        interval_days: waterEvery,
-        winter_factor: TASK_KINDS.water.defaultWinterFactor,
-      });
+      createTask(plant.id, waterTask);
     }
     if (photoUri) {
       // The plant exists now: a photo that fails to copy is reported, not blocking.
@@ -141,22 +204,37 @@ export default function NewPlant() {
           )}
         </View>
 
-        <PlantFields draft={draft} onChange={setDraft} rooms={rooms} autoFocus />
+        <PlantFields
+          draft={draft}
+          onChange={setDraft}
+          rooms={rooms}
+          autoFocus
+          roomHint={sheet ? lightHint(sheet.data.light, rooms) : undefined}
+          potHint={adviceHint(sheet?.data.pot)}
+          substrateHint={adviceHint(sheet?.data.substrate)}
+        />
 
         {sheet ? (
-          <ListSection
-            title="Soins proposés"
-            footer={`D’après la fiche de ${capitalize(sheet.common_name)}. Tu pourras ajuster ces rappels depuis la fiche de la plante.`}>
-            {suggested.map((item, index) => (
-              <SwitchRow
-                key={item.task.kind}
-                label={TASK_KINDS[item.task.kind].label}
-                description={suggestionText(item.task)}
-                value={item.enabled}
-                onValueChange={(enabled) => toggleSuggestion(index, enabled)}
-              />
-            ))}
-          </ListSection>
+          <>
+            <ListSection
+              title="Soins proposés"
+              footer={`D’après la fiche de ${capitalize(sheet.common_name)}. Tu pourras ajuster ces rappels depuis la fiche de la plante.`}>
+              {suggestedTasks.map((item, index) => (
+                <SwitchRow
+                  key={item.task.kind}
+                  label={TASK_KINDS[item.task.kind].label}
+                  description={
+                    item.task.kind === 'repot' && repotNote
+                      ? `${suggestionText(item.task)}\n${repotNote}`
+                      : suggestionText(item.task)
+                  }
+                  value={item.enabled}
+                  onValueChange={(enabled) => toggleSuggestion(index, enabled)}
+                />
+              ))}
+            </ListSection>
+            {suggestsWatering && <LastWateringField value={lastWatered} onChange={setLastWatered} />}
+          </>
         ) : (
           <>
             <ListSection
@@ -168,12 +246,17 @@ export default function NewPlant() {
               }>
               <SwitchRow
                 label="Me rappeler d’arroser"
-                description={watering ? `Tous les ${waterEvery} jours, à partir d’aujourd’hui` : undefined}
+                description={watering ? suggestionText(waterTask) : undefined}
                 value={watering}
                 onValueChange={setWatering}
               />
             </ListSection>
-            {watering && <ChoiceChips options={WATER_INTERVALS} value={waterEvery} onChange={setWaterEvery} />}
+            {watering && (
+              <>
+                <ChoiceChips options={WATER_INTERVALS} value={waterEvery} onChange={setWaterEvery} />
+                <LastWateringField value={lastWatered} onChange={setLastWatered} />
+              </>
+            )}
           </>
         )}
       </Screen>

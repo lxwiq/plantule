@@ -10,8 +10,26 @@ export type Validation<T> = { ok: true; value: T } | { ok: false; errors: string
 type JsonObject = Record<string, unknown>;
 
 /** Lowercase, with spaces and hyphens as underscores: "Bright indirect" → "bright_indirect". */
-function enumKey(value: string): string {
+export function enumKey(value: string): string {
   return value.trim().toLowerCase().replace(/[\s-]+/g, '_');
+}
+
+/** Placeholder answers a small model writes instead of leaving a text empty. */
+const PLACEHOLDER_TEXT = /^(n\/?a|none|null|unknown|inconnue?|aucune?|rien|non renseignée?)$/i;
+
+/**
+ * Text read without complaint: trimmed, single spaces, cut at a word before
+ * `max` characters (with "…"). Anything else gives "", including placeholders
+ * such as "…" or "N/A" (text without a letter counts as one).
+ */
+export function looseText(value: unknown, max = 200): string {
+  if (typeof value !== 'string') return '';
+  const text = value.trim().replace(/\s+/g, ' ');
+  if (!/[a-zà-ÿ]/i.test(text) || PLACEHOLDER_TEXT.test(text.replace(/[.!…]+$/, ''))) return '';
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max - 1);
+  const space = cut.lastIndexOf(' ');
+  return `${(space > max / 2 ? cut.slice(0, space) : cut).replace(/[\s,;:.–-]+$/, '')}…`;
 }
 
 function toNumber(value: unknown): number | null {

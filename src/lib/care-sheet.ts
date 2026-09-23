@@ -6,10 +6,10 @@
 
 import type { Light, TaskInput } from '@/db/types';
 
-import { addDays, formatInterval, today } from './dates';
+import { addDays, parseDate, toDateString, today } from './dates';
 import { LIGHT_ORDER, TASK_KINDS } from './labels';
 import { effectiveInterval, MAX_INTERVAL_DAYS } from './schedule';
-import { JsonReader, type Validation } from './validate';
+import { JsonReader, looseText, type Validation } from './validate';
 
 export type Humidity = 'low' | 'medium' | 'high';
 export type Toxicity = 'toxic' | 'non_toxic' | 'unknown';
@@ -35,15 +35,43 @@ export type CareSheet = {
   fertilizing: { interval_days: number };
   /** Null when the plant does not need misting (the model writes an interval of 0). */
   misting: { interval_days: number } | null;
-  repotting: { interval_days: number };
+  repotting: {
+    interval_days: number;
+    /** When and how to repot, in one or two sentences ("Au printemps, dans un pot 2 à 3 cm plus large"). */
+    advice: string;
+  };
+  /** Potting mix it likes, e.g. "Terreau pour plantes vertes allégé de billes d’argile". */
+  substrate: string;
+  /** Pot that suits it, e.g. "Terre cuite percée, qui laisse sécher la terre entre deux arrosages". */
+  pot: string;
+  /** How to take cuttings, or "" when it does not propagate easily at home. */
+  propagation: string;
+  /** Up to 3 common problems: what you see, why, what to do. */
+  problems: CareProblem[];
   /** 2 to 5 short tips, in French. */
   tips: string[];
 };
+
+/**
+ * A common problem of the species. Sheets written before these fields existed
+ * read back with "" and [] for them (see the validator), and the screens hide
+ * empty parts.
+ */
+export type CareProblem = { symptom: string; cause: string; fix: string };
 
 const HUMIDITY_VALUES: readonly Humidity[] = ['low', 'medium', 'high'];
 const TOXICITY_VALUES: readonly Toxicity[] = ['toxic', 'non_toxic', 'unknown'];
 const MAX_TIPS = 5;
 const MIN_TIPS = 2;
+/** New sheets ask for fewer tips: substrate, pot and problems now have their own fields. */
+const ASKED_MAX_TIPS = 4;
+const MAX_PROBLEMS = 3;
+/** Longest texts the schema lets the model write. */
+const ADVICE_LENGTH = 160;
+const SHORT_TEXT_LENGTH = 120;
+const PROBLEM_TEXT_LENGTH = 80;
+/** Without the schema (when the engine rejects it), longer texts are cut at a word, a little further. */
+const CUT_SLACK = 40;
 /** Winter factors offered by the task form; a sheet's factor snaps to the nearest one. */
 const WINTER_FACTORS = [1, 1.5, 2, 3];
 
@@ -102,6 +130,13 @@ const intervalObject = (description: string) => ({
 
 const toxicitySchema = { type: 'string', enum: TOXICITY_VALUES };
 
+const problemText = (description: string) => ({
+  type: 'string',
+  minLength: 1,
+  maxLength: PROBLEM_TEXT_LENGTH,
+  description,
+});
+
 /** Passed to the engine, which can constrain its output to it. */
 export const CARE_SHEET_SCHEMA = {
   type: 'object',
@@ -117,6 +152,10 @@ export const CARE_SHEET_SCHEMA = {
     'fertilizing',
     'misting',
     'repotting',
+    'substrate',
+    'pot',
+    'propagation',
+    'problems',
     'tips',
   ],
   properties: {
@@ -169,12 +208,42 @@ export const CARE_SHEET_SCHEMA = {
         },
       },
     },
-    repotting: intervalObject('Jours entre deux rempotages'),
+    repotting: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['interval_days', 'advice'],
+      properties: {
+        interval_days: interval('Jours entre deux rempotages'),
+        advice: { type: 'string', minLength: 1, maxLength: ADVICE_LENGTH, description: 'Quand et comment rempoter' },
+      },
+    },
+    substrate: { type: 'string', minLength: 1, maxLength: SHORT_TEXT_LENGTH, description: 'Terreau conseillé' },
+    pot: { type: 'string', minLength: 1, maxLength: SHORT_TEXT_LENGTH, description: 'Pot conseillé' },
+    propagation: {
+      type: 'string',
+      maxLength: ADVICE_LENGTH,
+      description: 'Comment la multiplier, "" si c’est difficile à la maison',
+    },
+    problems: {
+      type: 'array',
+      minItems: 1,
+      maxItems: MAX_PROBLEMS,
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['symptom', 'cause', 'fix'],
+        properties: {
+          symptom: problemText('Ce qu’on voit'),
+          cause: problemText('Cause probable'),
+          fix: problemText('Que faire'),
+        },
+      },
+    },
     tips: {
       type: 'array',
       minItems: MIN_TIPS,
-      maxItems: MAX_TIPS,
-      items: { type: 'string', minLength: 1, maxLength: 200 },
+      maxItems: ASKED_MAX_TIPS,
+      items: { type: 'string', minLength: 1, maxLength: ADVICE_LENGTH },
     },
   },
 } as const;
@@ -184,13 +253,45 @@ export function speciesKey(name: string): string {
   return name.trim().replace(/\s+/g, ' ');
 }
 
+export type CareSheetValidationOptions = {
+  /**
+   * For a sheet the model just wrote: the fields added later (repotting
+   * advice, substrate, pot, propagation, problems) are required, and their
+   * absence sent back to the model. Otherwise (sheets read back from the
+   * database) they default to "" and [], so older sheets still load.
+   */
+  strict?: boolean;
+};
+
+/** Complete problems only (symptom, cause and fix), at most `MAX_PROBLEMS`. */
+function readProblems(value: unknown): CareProblem[] {
+  if (!Array.isArray(value)) return [];
+  const problems: CareProblem[] = [];
+  for (const item of value) {
+    if (typeof item !== 'object' || item === null) continue;
+    const { symptom, cause, fix } = item as Record<string, unknown>;
+    const problem = {
+      symptom: looseText(symptom, PROBLEM_TEXT_LENGTH + CUT_SLACK),
+      cause: looseText(cause, PROBLEM_TEXT_LENGTH + CUT_SLACK),
+      fix: looseText(fix, PROBLEM_TEXT_LENGTH + CUT_SLACK),
+    };
+    if (problem.symptom && problem.cause && problem.fix) problems.push(problem);
+    if (problems.length === MAX_PROBLEMS) break;
+  }
+  return problems;
+}
+
 /** Checks a parsed model answer and returns the typed sheet, or what is wrong with it. */
-export function validateCareSheet(value: unknown): Validation<CareSheet> {
+export function validateCareSheet(
+  value: unknown,
+  { strict = false }: CareSheetValidationOptions = {},
+): Validation<CareSheet> {
   const r = new JsonReader();
   const root = r.object(value, 'réponse');
   const watering = r.object(root.watering, 'watering');
   const temperature = r.object(root.temperature, 'temperature');
   const toxicity = r.object(root.toxicity, 'toxicity');
+  const repotting = r.object(root.repotting, 'repotting');
 
   const errorsBefore = r.errors.length;
   const minC = r.integer(temperature.min_c, 'temperature.min_c', -30, 30);
@@ -218,6 +319,25 @@ export function validateCareSheet(value: unknown): Validation<CareSheet> {
     r.fail('tips', `entre ${MIN_TIPS} et ${MAX_TIPS} conseils attendus`, root.tips);
   }
 
+  // Fields added later. Placeholders ("…", "N/A") count as empty.
+  const text = (field: unknown, path: string, max: number) => {
+    const read = looseText(field, max);
+    if (strict && !read) r.fail(path, 'texte non vide attendu', field);
+    return read;
+  };
+  const propagation = looseText(root.propagation, ADVICE_LENGTH + CUT_SLACK);
+  if (strict && typeof root.propagation !== 'string') {
+    r.fail('propagation', 'texte attendu, "" si elle se multiplie mal à la maison', root.propagation);
+  }
+  const problems = readProblems(root.problems);
+  if (strict && problems.length === 0) {
+    r.fail(
+      'problems',
+      `entre 1 et ${MAX_PROBLEMS} problèmes attendus, chacun avec symptom, cause et fix non vides`,
+      root.problems,
+    );
+  }
+
   return r.result<CareSheet>({
     common_name: r.string(root.common_name, 'common_name', 80),
     scientific_name: speciesKey(r.string(root.scientific_name, 'scientific_name', 80)),
@@ -243,15 +363,24 @@ export function validateCareSheet(value: unknown): Validation<CareSheet> {
     },
     misting,
     repotting: {
-      interval_days: r.integer(
-        r.object(root.repotting, 'repotting').interval_days,
-        'repotting.interval_days',
-        1,
-        MAX_INTERVAL_DAYS,
-      ),
+      interval_days: r.integer(repotting.interval_days, 'repotting.interval_days', 1, MAX_INTERVAL_DAYS),
+      advice: text(repotting.advice, 'repotting.advice', ADVICE_LENGTH + CUT_SLACK),
     },
+    substrate: text(root.substrate, 'substrate', SHORT_TEXT_LENGTH + CUT_SLACK),
+    pot: text(root.pot, 'pot', SHORT_TEXT_LENGTH + CUT_SLACK),
+    propagation,
+    problems,
     tips,
   });
+}
+
+/**
+ * Whether a sheet has the fields added later. Older sheets read back with
+ * them empty: the screens can offer to write the sheet again. Propagation
+ * may rightly be empty, so it does not count.
+ */
+export function isSheetComplete(sheet: CareSheet): boolean {
+  return Boolean(sheet.repotting.advice && sheet.substrate && sheet.pot && sheet.problems.length > 0);
 }
 
 function nearestWinterFactor(factor: number): number {
@@ -260,12 +389,29 @@ function nearestWinterFactor(factor: number): number {
 
 const clampInterval = (days: number) => Math.min(Math.max(Math.round(days), 1), MAX_INTERVAL_DAYS);
 
+/** Months when a plant can be repotted: March to August. It is not repotted while resting. */
+const REPOT_MONTHS = { first: 3, last: 8 };
+
+/** The first day from `from` when repotting makes sense: `from` from March to August, else the next 1 March. */
+export function nextRepotDay(from: string): string {
+  const date = parseDate(from);
+  const month = date.getMonth() + 1;
+  if (month >= REPOT_MONTHS.first && month <= REPOT_MONTHS.last) return from;
+  const year = month > REPOT_MONTHS.last ? date.getFullYear() + 1 : date.getFullYear();
+  return toDateString(new Date(year, REPOT_MONTHS.first - 1, 1));
+}
+
 /**
  * The care tasks a sheet suggests for a new plant. Watering and misting start
- * today; the first feed and the repotting come after one interval (a new
- * plant usually has fresh soil).
+ * today; the first feed comes after one interval, and so does the repotting
+ * (a new plant usually has fresh soil) unless `repotNow` (the scan saw it
+ * needs a bigger pot): then it is due on the next day it can be repotted.
  */
-export function careSheetTasks(sheet: CareSheet, from = today()): TaskInput[] {
+export function careSheetTasks(
+  sheet: CareSheet,
+  from = today(),
+  { repotNow = false }: { repotNow?: boolean } = {},
+): TaskInput[] {
   const task = (kind: TaskInput['kind'], days: number, winterFactor: number, startNow: boolean): TaskInput => {
     const intervalDays = clampInterval(days);
     return {
@@ -276,13 +422,14 @@ export function careSheetTasks(sheet: CareSheet, from = today()): TaskInput[] {
       next_due_on: startNow ? from : addDays(from, effectiveInterval(intervalDays, winterFactor, from)),
     };
   };
+  const repot = task('repot', sheet.repotting.interval_days, TASK_KINDS.repot.defaultWinterFactor, false);
   return [
     task('water', sheet.watering.interval_days, nearestWinterFactor(sheet.watering.winter_factor), true),
     task('fertilize', sheet.fertilizing.interval_days, TASK_KINDS.fertilize.defaultWinterFactor, false),
     ...(sheet.misting
       ? [task('mist', sheet.misting.interval_days, TASK_KINDS.mist.defaultWinterFactor, true)]
       : []),
-    task('repot', sheet.repotting.interval_days, TASK_KINDS.repot.defaultWinterFactor, false),
+    repotNow ? { ...repot, next_due_on: nextRepotDay(from) } : repot,
   ];
 }
 
@@ -306,19 +453,6 @@ export function toxicityText({ cats, dogs }: CareSheet['toxicity']): string {
       ? `${word[cats]} pour les chats et les chiens`
       : `${word[cats]} pour les chats, ${word[dogs]} pour les chiens`;
   return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
-/** Like `formatInterval`, in months or years for long intervals: "tous les 2 ans". */
-export function formatCareInterval(days: number): string {
-  if (days >= 330) {
-    const years = Math.round(days / 365);
-    return years <= 1 ? 'tous les ans' : `tous les ${years} ans`;
-  }
-  if (days >= 45) {
-    const months = Math.round(days / 30);
-    return `tous les ${months} mois`;
-  }
-  return formatInterval(days);
 }
 
 /** "×1,5 en hiver", or null when the rhythm stays the same all year. */

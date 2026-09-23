@@ -9,7 +9,7 @@ import { usePlant, useTask } from '@/db/hooks';
 import { updateTask } from '@/db/repo';
 import type { Task } from '@/db/types';
 import { careActions } from '@/lib/care-actions';
-import { daysBetween, formatDue, formatInterval, formatRelativeTime, today } from '@/lib/dates';
+import { daysBetween, formatDue, formatInterval, formatRelativeDay, toDateString, today } from '@/lib/dates';
 import { taskTitle } from '@/lib/labels';
 import { closeScreen } from '@/lib/navigation';
 import { SOIL_WET_DEFAULT_DAYS } from '@/lib/schedule';
@@ -106,7 +106,7 @@ function TaskActions({ task }: { task: Task }) {
         </Text>
         {task.last_done_at && (
           <Text variant="subhead" tone="secondary">
-            Dernière fois {formatRelativeTime(task.last_done_at)}
+            Dernière fois {formatRelativeDay(toDateString(new Date(task.last_done_at)))}
           </Text>
         )}
       </View>

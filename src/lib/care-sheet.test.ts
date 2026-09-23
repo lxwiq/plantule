@@ -2,12 +2,12 @@ import { describe, expect, it } from '@jest/globals';
 
 import {
   careSheetTasks,
-  formatCareInterval,
+  isSheetComplete,
+  nextRepotDay,
   toxicityText,
   validateCareSheet,
   type CareSheet,
 } from './care-sheet';
-import { confidenceText, validateIdentification } from './identification';
 
 const monstera: CareSheet = {
   common_name: 'Faux philodendron',
@@ -19,18 +19,33 @@ const monstera: CareSheet = {
   toxicity: { cats: 'toxic', dogs: 'toxic' },
   fertilizing: { interval_days: 14 },
   misting: { interval_days: 4 },
-  repotting: { interval_days: 730 },
+  repotting: { interval_days: 730, advice: 'Au printemps, dans un pot 3 à 5 cm plus large.' },
+  substrate: 'Terreau pour plantes vertes allégé d’écorce de pin.',
+  pot: 'Pot percé et lourd, pour qu’elle ne bascule pas.',
+  propagation: 'Bouture une tige avec un nœud dans l’eau.',
+  problems: [
+    { symptom: 'Feuilles jaunes', cause: 'Trop d’eau', fix: 'Espace les arrosages.' },
+    { symptom: 'Feuilles sans découpes', cause: 'Manque de lumière', fix: 'Rapproche-la d’une fenêtre.' },
+  ],
   tips: ['Donne-lui un tuteur.', 'Dépoussière les feuilles.'],
 };
 
-function errorsOf(value: unknown): string[] {
-  const result = validateCareSheet(value);
+/** A sheet stored before repotting advice, substrate, pot, propagation and problems existed. */
+const { substrate, pot, propagation, problems, ...olderFields } = monstera;
+const olderSheet = { ...olderFields, repotting: { interval_days: 730 } };
+
+function errorsOf(value: unknown, strict = false): string[] {
+  const result = validateCareSheet(value, { strict });
   return result.ok ? [] : result.errors;
 }
 
 describe('care sheet validation', () => {
   it('accepts a complete sheet as is', () => {
     expect(validateCareSheet(JSON.parse(JSON.stringify(monstera)))).toEqual({ ok: true, value: monstera });
+    expect(validateCareSheet(JSON.parse(JSON.stringify(monstera)), { strict: true })).toEqual({
+      ok: true,
+      value: monstera,
+    });
   });
 
   it('forgives the slips of a small model', () => {
@@ -85,6 +100,78 @@ describe('care sheet validation', () => {
   });
 });
 
+describe('fields added to the sheets', () => {
+  it('reads an older stored sheet with them empty', () => {
+    const result = validateCareSheet(JSON.parse(JSON.stringify(olderSheet)));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.repotting).toEqual({ interval_days: 730, advice: '' });
+    expect(result.value).toMatchObject({ substrate: '', pot: '', propagation: '', problems: [] });
+    expect(result.value.tips).toEqual(monstera.tips);
+  });
+
+  it('requires them from a new sheet, and says so to the model', () => {
+    expect(errorsOf(olderSheet, true)).toEqual([
+      'propagation : texte attendu, "" si elle se multiplie mal à la maison (reçu : absent)',
+      'problems : entre 1 et 3 problèmes attendus, chacun avec symptom, cause et fix non vides (reçu : absent)',
+      'repotting.advice : texte non vide attendu (reçu : absent)',
+      'substrate : texte non vide attendu (reçu : absent)',
+      'pot : texte non vide attendu (reçu : absent)',
+    ]);
+  });
+
+  it('takes an empty propagation, but not placeholders elsewhere', () => {
+    expect(errorsOf({ ...monstera, propagation: '' }, true)).toEqual([]);
+    expect(errorsOf({ ...monstera, substrate: '…', pot: 'N/A' }, true)).toEqual([
+      'substrate : texte non vide attendu (reçu : "…")',
+      'pot : texte non vide attendu (reçu : "N/A")',
+    ]);
+    // Read back leniently, placeholders become empty.
+    const result = validateCareSheet({ ...monstera, substrate: '…', propagation: 'Aucune.' });
+    expect(result.ok && [result.value.substrate, result.value.propagation]).toEqual(['', '']);
+  });
+
+  it('keeps three complete problems at most', () => {
+    const result = validateCareSheet(
+      {
+        ...monstera,
+        problems: [
+          { symptom: 'Feuilles jaunes', cause: 'Trop d’eau', fix: 'Espace les arrosages.' },
+          { symptom: 'Taches brunes', cause: '', fix: 'Coupe les feuilles abîmées.' },
+          'Cochenilles',
+          { symptom: ' Feuilles   molles ', cause: 'Soif', fix: 'Arrose.' },
+          { symptom: 'Tiges étirées', cause: 'Manque de lumière', fix: 'Rapproche-la de la fenêtre.' },
+          { symptom: 'Racines brunes', cause: 'Pourriture', fix: 'Rempote.' },
+        ],
+      },
+      { strict: true },
+    );
+    expect(result.ok && result.value.problems.map((p) => p.symptom)).toEqual([
+      'Feuilles jaunes',
+      'Feuilles molles',
+      'Tiges étirées',
+    ]);
+    expect(errorsOf({ ...monstera, problems: [{ symptom: 'Feuilles jaunes' }] }, true)[0]).toMatch(/^problems : /);
+  });
+
+  it('cuts overlong texts at a word', () => {
+    const long = 'Un terreau très drainant '.repeat(20);
+    const result = validateCareSheet({ ...monstera, substrate: long }, { strict: true });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.substrate.length).toBeLessThanOrEqual(160);
+    expect(result.value.substrate).toMatch(/[a-z]…$/);
+  });
+
+  it('tells older sheets apart, to offer to complete them', () => {
+    expect(isSheetComplete(monstera)).toBe(true);
+    expect(isSheetComplete({ ...monstera, propagation: '' })).toBe(true);
+    const older = validateCareSheet(olderSheet);
+    expect(older.ok && isSheetComplete(older.value)).toBe(false);
+    expect(isSheetComplete({ ...monstera, problems: [] })).toBe(false);
+  });
+});
+
 describe('tasks suggested by a sheet', () => {
   it('waters and mists from today, feeds and repots after one interval', () => {
     expect(careSheetTasks(monstera, '2026-09-23')).toEqual([
@@ -106,66 +193,36 @@ describe('tasks suggested by a sheet', () => {
     // 14 days ×2 in winter.
     expect(tasks[1].next_due_on).toBe('2026-12-29');
   });
-});
 
-describe('identification validation', () => {
-  it('sorts, deduplicates and keeps three candidates', () => {
-    const result = validateIdentification({
-      is_plant: true,
-      candidates: [
-        { scientific_name: 'Epipremnum aureum', common_name: 'Pothos', confidence: 0.2 },
-        { scientific_name: 'Monstera deliciosa', common_name: 'Faux philodendron', confidence: 85 },
-        { scientific_name: 'monstera deliciosa', common_name: 'Monstera', confidence: 0.3 },
-        { scientific_name: 'Philodendron hederaceum', common_name: 'Philodendron', confidence: '0,1' },
-        { scientific_name: 'Scindapsus pictus', common_name: 'Scindapsus', confidence: 0.05 },
-      ],
+  it('repots right away when the scan says so, from March to August', () => {
+    const repot = (from: string) =>
+      careSheetTasks(monstera, from, { repotNow: true }).find((t) => t.kind === 'repot');
+    expect(repot('2026-06-15')).toEqual({
+      kind: 'repot',
+      label: null,
+      interval_days: 730,
+      winter_factor: 1,
+      next_due_on: '2026-06-15',
     });
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.value.candidates.map((c) => [c.scientific_name, c.confidence])).toEqual([
-      ['Monstera deliciosa', 0.85],
-      ['Epipremnum aureum', 0.2],
-      ['Philodendron hederaceum', 0.1],
-    ]);
+    // Not in autumn or winter: the plant rests.
+    expect(repot('2026-09-23')?.next_due_on).toBe('2027-03-01');
+    expect(repot('2026-12-01')?.next_due_on).toBe('2027-03-01');
+    // Other tasks do not change.
+    expect(careSheetTasks(monstera, '2026-06-15', { repotNow: true }).slice(0, 3)).toEqual(
+      careSheetTasks(monstera, '2026-06-15').slice(0, 3),
+    );
   });
 
-  it('accepts a photo without a plant', () => {
-    expect(validateIdentification({ is_plant: false, candidates: [] })).toEqual({
-      ok: true,
-      value: { is_plant: false, candidates: [] },
-    });
-  });
-
-  it('needs a species when it says it is a plant', () => {
-    const result = validateIdentification({ is_plant: true, candidates: [] });
-    expect(result.ok).toBe(false);
-  });
-
-  it('rejects a candidate without confidence', () => {
-    const result = validateIdentification({
-      is_plant: true,
-      candidates: [{ scientific_name: 'Monstera deliciosa', common_name: 'Faux philodendron' }],
-    });
-    expect(result.ok ? [] : result.errors).toEqual([
-      'candidates[0].confidence : nombre entre 0 et 1 attendu (reçu : absent)',
-    ]);
+  it('knows the next day a plant can be repotted', () => {
+    expect(nextRepotDay('2026-03-01')).toBe('2026-03-01');
+    expect(nextRepotDay('2026-08-31')).toBe('2026-08-31');
+    expect(nextRepotDay('2026-09-01')).toBe('2027-03-01');
+    expect(nextRepotDay('2027-01-10')).toBe('2027-03-01');
+    expect(nextRepotDay('2027-02-28')).toBe('2027-03-01');
   });
 });
 
 describe('sheet wording', () => {
-  it('says how confident the model is', () => {
-    expect(confidenceText(0.82)).toBe('Très probable · 82 %');
-    expect(confidenceText(0.5)).toBe('Probable · 50 %');
-    expect(confidenceText(0.05)).toBe('Peu probable · 5 %');
-  });
-
-  it('writes long intervals in months or years', () => {
-    expect(formatCareInterval(7)).toBe('toutes les semaines');
-    expect(formatCareInterval(90)).toBe('tous les 3 mois');
-    expect(formatCareInterval(365)).toBe('tous les ans');
-    expect(formatCareInterval(730)).toBe('tous les 2 ans');
-  });
-
   it('describes toxicity for cats and dogs', () => {
     expect(toxicityText({ cats: 'toxic', dogs: 'toxic' })).toBe('Toxique pour les chats et les chiens');
     expect(toxicityText({ cats: 'toxic', dogs: 'non_toxic' })).toBe(

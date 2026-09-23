@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
 
 import { useModelStatus } from '@/ai';
-import { CareSheetSections, SHEET_DISCLAIMER } from '@/components/care-sheet-view';
+import { CareSheetSections, SHEET_DISCLAIMER, SHEET_INCOMPLETE } from '@/components/care-sheet-view';
 import { EventRow } from '@/components/event-row';
 import { TaskRow } from '@/components/task-row';
 import {
@@ -31,6 +31,7 @@ import {
 import { addPhoto, deletePhoto, deletePlant, setMainPhoto, setPlantSpeciesSheet } from '@/db/repo';
 import type { Photo, Plant } from '@/db/types';
 import { careActions } from '@/lib/care-actions';
+import { isSheetComplete } from '@/lib/care-sheet';
 import { formatShortDate } from '@/lib/dates';
 import { closeScreen } from '@/lib/navigation';
 import { choosePhotoSource, pickPhoto } from '@/lib/pick-photo';
@@ -307,14 +308,38 @@ function SpeciesSheetSection({ plant }: { plant: Plant }) {
         { text: 'Annuler', style: 'cancel' },
         { text: 'Retirer', style: 'destructive', onPress: () => setPlantSpeciesSheet(plant.id, null) },
       ]);
+    // Older sheets lack the substrate, pot, problems…: the model can write them again.
+    const canComplete = !isSheetComplete(sheet.data) && status.state === 'ready';
     return (
-      <CareSheetSections
-        sheet={sheet.data}
-        title="Fiche espèce"
-        showNames
-        footer={SHEET_DISCLAIMER}
-        action={<Button title="Retirer" variant="text" size="sm" onPress={confirmRemove} />}
-      />
+      <>
+        {canComplete && (
+          <Banner
+            icon={icons.sparkles}
+            title="Fiche à compléter"
+            action={{
+              label: 'Compléter la fiche',
+              onPress: () =>
+                router.push({
+                  pathname: '/scan/sheet',
+                  params: {
+                    species: sheet.data.scientific_name,
+                    commonName: sheet.data.common_name,
+                    plantId: plant.id,
+                    refresh: '1',
+                  },
+                }),
+            }}>
+            {SHEET_INCOMPLETE}
+          </Banner>
+        )}
+        <CareSheetSections
+          sheet={sheet.data}
+          title="Fiche espèce"
+          showNames
+          footer={SHEET_DISCLAIMER}
+          action={<Button title="Retirer" variant="text" size="sm" onPress={confirmRemove} />}
+        />
+      </>
     );
   }
 

@@ -131,6 +131,11 @@ export type TaskInput = {
   label: string | null;
   interval_days: number;
   winter_factor: number;
-  /** Leaving it out keeps the current date on update, and means today on creation. */
+  /**
+   * Leaving it out keeps the current date on update. On creation it means one
+   * interval after `last_done_on`, or today.
+   */
   next_due_on?: string;
+  /** Creation only: the day it was last done, before the plant was added to the app. */
+  last_done_on?: string | null;
 };

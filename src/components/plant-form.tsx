@@ -47,10 +47,25 @@ type PlantFieldsProps = {
   autoFocus?: boolean;
   /** Under the species field. */
   speciesHint?: string;
+  /** Under the room choice, e.g. the light the species likes. */
+  roomHint?: string;
+  /** Under the pot field, e.g. the pot the species sheet suggests. */
+  potHint?: string;
+  /** Under the substrate field, e.g. the mix the species sheet suggests. */
+  substrateHint?: string;
 };
 
 /** The plant's details, shared by the create and edit screens. */
-export function PlantFields({ draft, onChange, rooms, autoFocus, speciesHint }: PlantFieldsProps) {
+export function PlantFields({
+  draft,
+  onChange,
+  rooms,
+  autoFocus,
+  speciesHint,
+  roomHint,
+  potHint,
+  substrateHint,
+}: PlantFieldsProps) {
   const set = <K extends keyof PlantDraft>(key: K) => (value: PlantDraft[K]) =>
     onChange({ ...draft, [key]: value });
 
@@ -91,6 +106,11 @@ export function PlantFields({ draft, onChange, rooms, autoFocus, speciesHint }: 
           value={draft.roomId ?? ''}
           onChange={(value) => set('roomId')(value || null)}
         />
+        {roomHint ? (
+          <Text variant="caption" tone="secondary">
+            {roomHint}
+          </Text>
+        ) : null}
         <Button
           title="Nouvelle pièce"
           icon={icons.add}
@@ -114,6 +134,7 @@ export function PlantFields({ draft, onChange, rooms, autoFocus, speciesHint }: 
         value={draft.pot}
         onChangeText={set('pot')}
         maxLength={120}
+        hint={potHint}
       />
       <TextField
         label="Substrat (facultatif)"
@@ -121,6 +142,7 @@ export function PlantFields({ draft, onChange, rooms, autoFocus, speciesHint }: 
         value={draft.substrate}
         onChangeText={set('substrate')}
         maxLength={120}
+        hint={substrateHint}
       />
       <TextField
         label="Notes (facultatif)"
