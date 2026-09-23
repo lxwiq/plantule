@@ -6,7 +6,7 @@
 import { randomUUID } from 'expo-crypto';
 
 import { speciesKey, validateCareSheet, type CareSheet } from '@/lib/care-sheet';
-import { parseDate, toDateString, today } from '@/lib/dates';
+import { addDays, parseDate, toDateString, today } from '@/lib/dates';
 import { findReference } from '@/lib/plant-reference';
 import { validateDiagnosis, type Diagnosis } from '@/lib/diagnosis';
 import { firstDueOn, nextDueAfterDone, postpone, suggestedInterval } from '@/lib/schedule';
@@ -317,31 +317,50 @@ export function saveSpeciesSheet(sheet: CareSheet, source: SpeciesSheetSource): 
 
 // Photos
 
+// Photos restored from an older backup have no taken_at: the day they were added stands in.
+const PHOTO_DATE = 'coalesce(ph.taken_at, ph.created_at)';
+
+const PHOTO_SELECT = `
+  select ph.id, ph.plant_id, ph.uri, ph.created_at, ${PHOTO_DATE} as taken_at,
+    (select d.id from diagnoses d where d.photo_id = ph.id order by d.created_at desc limit 1) as diagnosis_id
+  from photos ph`;
+
+/** Photos of a plant, most recently taken first. */
 export function listPhotos(plantId: string): Photo[] {
   return db().getAllSync<Photo>(
-    'select * from photos where plant_id = ? order by created_at desc',
+    `${PHOTO_SELECT} where ph.plant_id = ? order by ${PHOTO_DATE} desc, ph.created_at desc`,
     plantId,
   );
 }
 
 /**
- * Keeps a copy of the picked photo. The first photo becomes the main one,
- * unless `asMain` is false (a close-up of a sick leaf is a poor portrait).
+ * Keeps a copy of the picked photo, dated `takenAt` (an instant, never in the
+ * future) or now. The first photo becomes the main one, unless `asMain` is
+ * false (a close-up of a sick leaf is a poor portrait).
  */
 export async function addPhoto(
   plantId: string,
   sourceUri: string,
-  { asMain = true }: { asMain?: boolean } = {},
+  { asMain = true, takenAt }: { asMain?: boolean; takenAt?: string } = {},
 ): Promise<Photo> {
   const id = randomUUID();
   const uri = await storePhotoFile(sourceUri, id);
-  const photo: Photo = { id, plant_id: plantId, uri, created_at: now() };
+  const at = now();
+  const photo: Photo = {
+    id,
+    plant_id: plantId,
+    uri,
+    taken_at: takenAt && takenAt < at ? takenAt : at,
+    diagnosis_id: null,
+    created_at: at,
+  };
   db().withTransactionSync(() => {
     db().runSync(
-      'insert into photos (id, plant_id, uri, created_at) values (?, ?, ?, ?)',
+      'insert into photos (id, plant_id, uri, taken_at, created_at) values (?, ?, ?, ?, ?)',
       photo.id,
       plantId,
       uri,
+      photo.taken_at,
       photo.created_at,
     );
     if (asMain) {
@@ -353,7 +372,13 @@ export async function addPhoto(
 }
 
 export function getPhoto(id: string): Photo | null {
-  return db().getFirstSync<Photo>('select * from photos where id = ?', id);
+  return db().getFirstSync<Photo>(`${PHOTO_SELECT} where ph.id = ?`, id);
+}
+
+/** Changes when a photo was taken (an instant). */
+export function setPhotoTakenAt(id: string, takenAt: string) {
+  db().runSync('update photos set taken_at = ? where id = ?', takenAt, id);
+  notify('photos');
 }
 
 export function setMainPhoto(plantId: string, photoId: string | null) {
@@ -362,15 +387,19 @@ export function setMainPhoto(plantId: string, photoId: string | null) {
 }
 
 /**
- * Deletes a photo; if it was the main one, the most recent one left takes
- * over. Diagnoses made from it stay, without a photo.
+ * Deletes a photo; if it was the main one, the most recently taken one left
+ * takes over, diagnosis close-ups last. Diagnoses made from it stay, without
+ * a photo.
  */
 export function deletePhoto(photo: Photo) {
   db().withTransactionSync(() => {
     db().runSync('delete from photos where id = ?', photo.id);
     db().runSync(
       `update plants set main_photo_id = (
-         select id from photos where plant_id = ? order by created_at desc limit 1
+         select ph.id from photos ph where ph.plant_id = ?
+         order by exists (select 1 from diagnoses d where d.photo_id = ph.id),
+           ${PHOTO_DATE} desc, ph.created_at desc
+         limit 1
        ) where id = ? and main_photo_id = ?`,
       photo.plant_id,
       photo.plant_id,
@@ -555,6 +584,18 @@ export function listPlantEvents(plantId: string, limit = 50): CareEvent[] {
     'select * from events where plant_id = ? order by occurred_at desc limit ?',
     plantId,
     limit,
+  );
+}
+
+/** Journal of the place's plants from `fromDay` to `toDay` included (local days), oldest first. */
+export function listPlaceEvents(placeId: string, fromDay: string, toDay: string): CareEvent[] {
+  return db().getAllSync<CareEvent>(
+    `select e.* from events e join plants p on p.id = e.plant_id
+     where p.place_id = ? and e.occurred_at >= ? and e.occurred_at < ?
+     order by e.occurred_at`,
+    placeId,
+    parseDate(fromDay).toISOString(),
+    parseDate(addDays(toDay, 1)).toISOString(),
   );
 }
 

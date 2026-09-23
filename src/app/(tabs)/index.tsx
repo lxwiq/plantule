@@ -87,7 +87,10 @@ export default function Today() {
         title="Aujourd’hui"
         subtitle={`${capitalize(formatLongDate(day))} · ${place.name}`}
         actions={
-          <IconButton icon={icons.settings} label="Réglages" onPress={() => router.push('/settings')} />
+          <>
+            <IconButton icon={icons.calendar} label="Calendrier" onPress={() => router.push('/calendar')} />
+            <IconButton icon={icons.settings} label="Réglages" onPress={() => router.push('/settings')} />
+          </>
         }
       />
 

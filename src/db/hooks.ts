@@ -43,12 +43,20 @@ export function useTask(taskId: string) {
   return useLiveQuery(`task:${taskId}`, ['tasks'], () => repo.getTask(taskId));
 }
 
+/** Photos of a plant, most recently taken first, with the diagnosis each one illustrates. */
 export function usePhotos(plantId: string) {
-  return useLiveQuery(`photos:${plantId}`, ['photos'], () => repo.listPhotos(plantId));
+  return useLiveQuery(`photos:${plantId}`, ['photos', 'diagnoses'], () => repo.listPhotos(plantId));
 }
 
 export function usePlantEvents(plantId: string) {
   return useLiveQuery(`events:${plantId}`, ['events'], () => repo.listPlantEvents(plantId));
+}
+
+/** Journal of the place's plants between two days included, oldest first. */
+export function usePlaceEvents(placeId: string, fromDay: string, toDay: string) {
+  return useLiveQuery(`place_events:${placeId}:${fromDay}:${toDay}`, ['events', 'plants'], () =>
+    repo.listPlaceEvents(placeId, fromDay, toDay),
+  );
 }
 
 export function useSpeciesSheet(sheetId: string | null | undefined) {

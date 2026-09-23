@@ -23,7 +23,7 @@ import { careSheetTasks, winterText } from '@/lib/care-sheet';
 import { formatDue, formatInterval, today } from '@/lib/dates';
 import { parseFindings, potText } from '@/lib/identification';
 import { LIGHT_LABELS, TASK_KINDS } from '@/lib/labels';
-import { choosePhotoSource, pickPhoto } from '@/lib/pick-photo';
+import { choosePhotoSource, pickDatedPhoto } from '@/lib/pick-photo';
 import { firstDueOn } from '@/lib/schedule';
 import { capitalize } from '@/lib/text';
 import { radius, spacing } from '@/theme';
@@ -112,7 +112,10 @@ export default function NewPlant() {
     // Without a sheet, no repotting reminder: the notes keep the advice.
     notes: findingsNotes(findings, { withRepot: !sheet }),
   }));
-  const [photoUri, setPhotoUri] = useState<string | null>(params.photoUri ?? null);
+  // A photo from the scan has no date: it was just taken or picked, it is dated now.
+  const [photo, setPhoto] = useState<{ uri: string; takenAt?: string } | null>(
+    params.photoUri ? { uri: params.photoUri } : null,
+  );
   const [watering, setWatering] = useState(true);
   const [waterEvery, setWaterEvery] = useState(TASK_KINDS.water.defaultInterval);
   const [lastWatered, setLastWatered] = useState<string | null>(null);
@@ -144,8 +147,8 @@ export default function NewPlant() {
 
   const choosePhoto = () =>
     choosePhotoSource((source) => {
-      pickPhoto(source).then(
-        (uri) => uri && setPhotoUri(uri),
+      pickDatedPhoto(source).then(
+        (picked) => picked && setPhoto(picked),
         (e) => Alert.alert('Photo', errorText(e)),
       );
     });
@@ -159,9 +162,9 @@ export default function NewPlant() {
     } else if (watering) {
       createTask(plant.id, waterTask);
     }
-    if (photoUri) {
+    if (photo) {
       // The plant exists now: a photo that fails to copy is reported, not blocking.
-      await addPhoto(plant.id, photoUri).catch((e) =>
+      await addPhoto(plant.id, photo.uri, { takenAt: photo.takenAt }).catch((e) =>
         Alert.alert('Plante ajoutée', `La photo n’a pas pu être enregistrée : ${errorText(e)}`),
       );
     }
@@ -188,16 +191,16 @@ export default function NewPlant() {
       />
       <Screen>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
-          {photoUri ? (
+          {photo ? (
             <>
               <Image
-                source={{ uri: photoUri }}
+                source={{ uri: photo.uri }}
                 style={{ width: 96, height: 96, borderRadius: radius.lg }}
                 contentFit="cover"
                 accessibilityLabel="Photo choisie"
               />
               <Button title="Changer" variant="tonal" size="sm" onPress={choosePhoto} />
-              <IconButton icon={icons.delete} label="Retirer la photo" onPress={() => setPhotoUri(null)} />
+              <IconButton icon={icons.delete} label="Retirer la photo" onPress={() => setPhoto(null)} />
             </>
           ) : (
             <Button title="Ajouter une photo" icon={icons.camera} variant="tonal" onPress={choosePhoto} />

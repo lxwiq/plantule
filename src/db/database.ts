@@ -124,6 +124,13 @@ const MIGRATIONS: string[] = [
   );
   create index chat_messages_plant_idx on chat_messages (plant_id, created_at);
   `,
+  // 4: when each photo was taken, for the growth gallery. Photos restored from
+  // an older backup may still lack it: reads fall back to created_at.
+  `
+  alter table photos add column taken_at text;
+  update photos set taken_at = created_at;
+  create index photos_taken_idx on photos (plant_id, taken_at);
+  `,
 ];
 
 export const DATABASE_NAME = 'plantule.db';
