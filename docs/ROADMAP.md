@@ -43,10 +43,10 @@ Application Android de gestion des plantes. Usage perso : moi et mes proches, ch
 | Fiche espèce | nom commun et latin, lumière, arrosage, humidité, température, toxicité pour les chats et les chiens, rythme d'engrais, de brumisation et de rempotage, conseils de rempotage, substrat et pot conseillés, problèmes fréquents, bouturage, conseils. Partagée par les plantes de la même espèce. Pour une espèce de la base de référence, les chiffres viennent de la base et Gemma écrit les conseils ; sinon Gemma écrit tout |
 | Tâche d'entretien | plante, type, intervalle en jours, ajustement hiver, dernière fois faite (peut être indiquée à l'ajout de la plante), prochaine échéance |
 | Journal | plante, type d'action, date, note |
-| Photo | plante, date, fichier |
+| Photo | plante, date de prise (lue dans la photo quand elle vient de la galerie, modifiable), date d'ajout, fichier |
 | Diagnostic | plante, date, photo, état (saine, à surveiller, à soigner), problèmes probables avec leur confiance, conseils, changement d'entretien proposé |
 | Conversation | plante, rôle (moi ou Plantule), texte, date |
-| Réglages | lieu affiché, résumé quotidien activé, heure du résumé |
+| Réglages | lieu affiché, résumé quotidien activé, heure du résumé, date de la dernière sauvegarde |
 
 ## Règles métier
 
@@ -56,10 +56,12 @@ Application Android de gestion des plantes. Usage perso : moi et mes proches, ch
 - **Premier rappel** : à l'ajout d'une plante, on peut dire quand elle a été arrosée pour la dernière fois. Le premier arrosage tombe un intervalle plus tard, jamais en retard. Sans date, c'est aujourd'hui.
 - **Rempotage conseillé par la photo** : si le scan voit qu'il faut rempoter, la tâche tombe tout de suite de mars à août, sinon au 1er mars suivant.
 - **Résumé quotidien** : une notif locale à l'heure choisie (« 3 plantes à arroser »). Elle est recalculée à chaque changement, pour les 30 jours suivants.
+- **Calendrier** : à partir d'aujourd'hui, il projette chaque soin depuis sa prochaine échéance (aujourd'hui s'il est en retard), puis un intervalle plus tard à chaque fois, hiver compris, comme si chaque soin était fait le jour prévu. Les jours passés ne montrent que le journal.
+- **Import d'une sauvegarde** : il remplace toutes les données du téléphone, après confirmation. Le fichier est vérifié avant, et tout se fait en une transaction : en cas d'erreur, rien ne change. Une sauvegarde d'une version plus récente de l'app est refusée ; une plus ancienne s'importe.
 
 ## Navigation
 
-Onglets : **Aujourd'hui · Plantes · Scan · Maison**. L'onglet Maison contient le lieu affiché, ses pièces, les autres lieux et les réglages.
+Onglets : **Aujourd'hui · Plantes · Scan · Maison**. L'onglet Maison contient le lieu affiché, ses pièces, les autres lieux et les réglages (dont la sauvegarde). Le calendrier du mois s'ouvre depuis l'en-tête d'Aujourd'hui, la galerie de photos depuis la page d'une plante.
 
 ## Phases
 
@@ -138,11 +140,21 @@ Onglets : **Aujourd'hui · Plantes · Scan · Maison**. L'onglet Maison contient
 - que l’identification reste aussi bonne avec les instructions de l’expert commun ;
 - le clavier de « Demande à Plantule » et les confirmations de suppression.
 
-**Prochain lot**
+**Lot livré le 23/09/2026 : sauvegarde, galerie et calendrier**
 
-- [ ] Sauvegarde : exporter et réimporter ses données (fichier), pour changer de téléphone
-- [ ] Galerie de croissance : photos datées de chaque plante
-- [ ] Vue calendrier du mois
+- [x] **Sauvegarde** : exporter et réimporter ses données (fichier), pour changer de téléphone. Dans Réglages, « Exporter mes données » crée un fichier `.zip` avec les lieux, plantes, soins, journal, photos, fiches et réglages, et l'envoie par le menu de partage (Drive, e-mail, Quick Share…). « Importer une sauvegarde » vérifie le fichier, montre ce qu'il contient, puis remplace tout ce qui est sur le téléphone ; en cas d'erreur, rien ne change. La date de la dernière sauvegarde s'affiche
+- [x] **Galerie de croissance** : photos datées de chaque plante. Chaque photo garde sa date de prise, lue dans la photo quand elle vient de la galerie, et modifiable. La galerie range les photos par mois et compare la plus ancienne à la plus récente (« 8 mois plus tard »), sans les gros plans des diagnostics. On les regarde en plein écran en glissant de l'une à l'autre, avec le temps écoulé depuis l'arrivée de la plante
+- [x] **Vue calendrier du mois** : une grille qui commence le lundi, ouverte depuis Aujourd'hui, avec des points pour les soins de chaque jour. À partir d'aujourd'hui, les soins prévus (hiver compris) et les retards ; pour les jours passés, ce que dit le journal
+
+**À vérifier sur le téléphone** (essayé dans le navigateur pour la galerie et le calendrier, pas du tout pour la sauvegarde, qui n'existe pas sur le web) :
+
+- l'export vers Drive, Gmail et Quick Share, et le choix du fichier depuis Drive ou Téléchargements à l'import ;
+- une vraie migration : exporter sur un téléphone, importer sur un autre, et retrouver les photos ;
+- le temps et la mémoire d'un export et d'un import avec beaucoup de photos ;
+- les messages de refus avec un mauvais fichier ;
+- la date lue dans les photos choisies dans la galerie Android ;
+- « Changer la date » d'une photo, le glissement dans la visionneuse et son compteur « 3 / 7 », la confirmation de suppression ;
+- l'en-tête et la barre d'état sombres de la visionneuse.
 
 ### Phase 4 — Bonus
 
@@ -154,7 +166,7 @@ Onglets : **Aujourd'hui · Plantes · Scan · Maison**. L'onglet Maison contient
 
 ## Risques et points ouverts
 
-- **Données seulement sur le téléphone** : perdre ou changer de téléphone, ou désinstaller l'app, efface tout. D'où la sauvegarde par fichier en phase 3.
+- **Données seulement sur le téléphone** : perdre ou changer de téléphone, ou désinstaller l'app, efface tout. La sauvegarde par fichier existe depuis la phase 3, mais elle est manuelle : sans export récent, un téléphone perdu emporte tout. La date de la dernière sauvegarde est affichée dans Réglages.
 - **Pas de partage** : si plusieurs personnes s'occupent des mêmes plantes, chacune a sa propre liste. Si ça devient gênant, la branche `backend-rust` contient une API de synchronisation prête à reprendre.
 - **Précision de l'identification** : Gemma 4 est un modèle généraliste de 2 à 4 milliards de paramètres. Il peut se tromper d'espèce tout en ayant l'air sûr de lui. L'utilisateur confirme donc toujours, et on compare avec Pl@ntNet pendant le prototype. Si la précision ne suffit pas, Pl@ntNet sert à l'identification et Gemma garde la fiche et le diagnostic.
 - **Poids et matériel** : le modèle pèse 2,6 Go à télécharger et demande un téléphone avec au moins 6 Go de RAM. Le scan doit rester optionnel : l'ajout à la main marche partout.
@@ -165,3 +177,4 @@ Onglets : **Aujourd'hui · Plantes · Scan · Maison**. L'onglet Maison contient
 - **Chiffres de la base de référence** : les noms (Wikidata) et la toxicité (ASPCA) sont vérifiés, mais les chiffres d’entretien ont été écrits par nous faute de source libre. Ce sont des points de départ, à corriger dans `src/data/plants.ts` quand l’usage montre qu’ils sont faux. Le badge « Données vérifiées » en dit donc un peu plus qu’il ne faudrait.
 - **Questions et diagnostic sans le modèle** : « Demande à Plantule » et le diagnostic ont besoin de Gemma, donc d’un téléphone de 6 Go de RAM et du modèle téléchargé. Ailleurs, la ligne « Demande à Plantule » est masquée.
 - **Notifications sans ouvrir l'app** : les résumés sont programmés pour 30 jours. Au-delà sans ouvrir l'app, il n'y en a plus.
+- **Version web de développement** : expo-sqlite sur le web coupe les résultats de requête de plus de 255 octets (`web/WorkerChannel.ts`), ce qui casse l'app dans le navigateur avec de vraies données. Pour tester sur le web, il faut corriger ce fichier en local, sans le committer.

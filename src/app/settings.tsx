@@ -93,7 +93,10 @@ function BackupSection() {
   };
 
   const importData = async () => {
-    const file = await pickBackupFile();
+    const file = await pickBackupFile().catch(() => {
+      Alert.alert('Import impossible', 'Le sélecteur de fichiers n’a pas pu s’ouvrir. Réessaie.');
+      return null;
+    });
     if (!file) return;
     setBusy('read');
     let picked: PickedBackup;
