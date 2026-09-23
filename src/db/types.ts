@@ -215,6 +215,10 @@ export type Settings = {
   daily_summary_time: string;
   /** ISO instant of the last backup file made, or imported, on this phone. */
   last_backup_at: string | null;
+  /** The coming care is written to an agenda « Plantule » in the phone's calendar. */
+  agenda_enabled: boolean;
+  /** That agenda's id in the phone's calendar, once created. */
+  agenda_calendar_id: string | null;
 };
 
 export type RoomInput = { name: string; light: Light | null; is_outdoor: boolean };

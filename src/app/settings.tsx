@@ -4,6 +4,12 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Linking } from 'react-native';
 
+import {
+  agendaAvailable,
+  agendaPermission,
+  disableAgenda,
+  enableAgenda,
+} from '@/agenda/phone-agenda';
 import { ai } from '@/ai';
 import { formatBytes } from '@/ai/model-format';
 import { ModelCard } from '@/components/ai-model-card';
@@ -41,6 +47,74 @@ function dateToTime(date: Date) {
 function scanFooter() {
   const size = ai.info.sizeBytes > 0 ? ` Il pèse ${formatBytes(ai.info.sizeBytes)}, à télécharger une seule fois.` : '';
   return `Le modèle d’IA tourne sur ton téléphone : tes photos ne sont envoyées nulle part.${size}`;
+}
+
+const AGENDA_FOOTER =
+  'Un agenda « Plantule » sur ce téléphone, avec les soins des 30 prochains jours dans le lieu affiché. Il se met à jour tout seul quand tu coches un soin.';
+
+/** Writes the coming care to an agenda of the phone's calendar app. */
+function AgendaSection() {
+  const settings = useSettings();
+  const [busy, setBusy] = useState(false);
+  const [permission, setPermission] = useState<'granted' | 'denied' | 'undetermined' | null>(null);
+
+  useEffect(() => {
+    agendaPermission().then(setPermission, () => setPermission('denied'));
+  }, []);
+
+  if (!agendaAvailable) return null;
+
+  const enable = async () => {
+    setBusy(true);
+    try {
+      const { granted } = await enableAgenda();
+      setPermission(granted ? 'granted' : 'denied');
+      if (!granted) {
+        Alert.alert(
+          'Accès à l’agenda refusé',
+          'Autorise l’agenda pour Plantule dans les réglages du téléphone pour y ajouter les soins de tes plantes.',
+          [
+            { text: 'Plus tard', style: 'cancel' },
+            { text: 'Ouvrir les réglages', onPress: () => void Linking.openSettings() },
+          ],
+        );
+      }
+    } catch {
+      Alert.alert('Agenda indisponible', 'L’agenda « Plantule » n’a pas pu être créé sur ce téléphone. Réessaie plus tard.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const disable = async () => {
+    setBusy(true);
+    try {
+      await disableAgenda();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <ListSection title="Agenda" footer={AGENDA_FOOTER}>
+        <SwitchRow
+          label="Ajouter les soins à mon agenda"
+          value={settings.agenda_enabled}
+          disabled={busy}
+          onValueChange={(enabled) => void (enabled ? enable() : disable())}
+        />
+      </ListSection>
+      {settings.agenda_enabled && permission && permission !== 'granted' && (
+        <Banner
+          tone="warning"
+          icon={icons.calendar}
+          action={{ label: 'Autoriser l’agenda', onPress: () => void enable() }}>
+          L’agenda n’est pas autorisé sur ce téléphone : les soins n’y sont plus ajoutés.
+        </Banner>
+      )}
+    </>
+  );
 }
 
 const BACKUP_FOOTER =
@@ -226,6 +300,8 @@ export default function Settings() {
           onDismiss={() => setPickingTime(false)}
         />
       )}
+
+      <AgendaSection />
 
       <ListSection title="Scan IA" footer={scanFooter()}>
         <ModelCard />
