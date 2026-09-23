@@ -12,6 +12,7 @@ import { ensurePlace } from '@/db/repo';
 import { useToday } from '@/hooks/use-today';
 import { syncDailySummary } from '@/notifications/daily-summary';
 import { palettes, typography, useScheme, useTheme } from '@/theme';
+import { useUpdateChecks } from '@/updates/store';
 import { useWeatherRefresh } from '@/weather/sync';
 import { updateTodayWidget } from '@/widget';
 
@@ -99,6 +100,12 @@ function AgendaSync() {
   return null;
 }
 
+/** Looks for a newer build of the app on GitHub when it opens or comes back. */
+function UpdateCheck() {
+  useUpdateChecks();
+  return null;
+}
+
 export default function RootLayout() {
   // The app renders once the database is open and migrated.
   return (
@@ -128,6 +135,7 @@ function App() {
       <WeatherSync />
       <TodayWidgetSync />
       <AgendaSync />
+      <UpdateCheck />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: theme.background },

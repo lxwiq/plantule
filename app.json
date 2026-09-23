@@ -40,6 +40,7 @@
         }
       ],
       "./plugins/with-android-release-signing",
+      "./plugins/with-app-updater",
       "expo-sqlite",
       [
         "expo-notifications",

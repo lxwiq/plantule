@@ -1,5 +1,4 @@
 import { DateTimePicker } from '@expo/ui/community/datetime-picker';
-import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Linking } from 'react-native';
@@ -13,7 +12,8 @@ import {
 import { ai } from '@/ai';
 import { formatBytes } from '@/ai/model-format';
 import { ModelCard } from '@/components/ai-model-card';
-import { Banner, icons, ListRow, ListSection, Screen, SwitchRow, Text } from '@/components/ui';
+import { UpdateSection } from '@/components/app-update';
+import { Banner, icons, ListRow, ListSection, Screen, SwitchRow } from '@/components/ui';
 import {
   BackupError,
   backupAvailable,
@@ -314,9 +314,7 @@ export default function Settings() {
         changer de téléphone les efface : exporte une sauvegarde pour les garder.
       </Banner>
 
-      <Text variant="caption" tone="tertiary" selectable style={{ textAlign: 'center' }}>
-        Plantule {Constants.expoConfig?.version ?? ''}
-      </Text>
+      <UpdateSection />
     </Screen>
   );
 }

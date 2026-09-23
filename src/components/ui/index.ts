@@ -5,6 +5,7 @@ export { Icon, icons, type IconName } from './icon';
 export { IconButton } from './icon-button';
 export { ListRow, ListSection } from './list';
 export { HeaderButton, Screen, ScreenTitle } from './screen';
+export { ProgressBar } from './progress-bar';
 export { EmptyState } from './states';
 export { Text, type TextProps } from './text';
 export { TextField, type TextFieldProps } from './text-field';
