@@ -55,6 +55,16 @@ export function svgDocument(fragment: Fragment, { viewBox, background }: Documen
   return markup.split(ID_MARK).join(prefix);
 }
 
+/**
+ * The document with ids of its own, for a page showing the same drawing twice:
+ * a browser paints no gradient whose first element with that id is hidden
+ * (another screen of the stack). `salt` is letters and digits.
+ */
+export function withOwnIds(svg: string, salt: string): string {
+  const prefix = /\sid="(a[0-9a-z]+-)/.exec(svg)?.[1];
+  return prefix ? svg.split(prefix).join(`${prefix}${salt}-`) : svg;
+}
+
 /** A vertical gradient from top to bottom, as a <linearGradient>. */
 export function verticalGradient(id: string, stops: [offset: number, color: string][]): string {
   return linearGradient(id, [0, 0, 0, 1], stops);

@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import { normalizeOutfit, pepinSvg } from './pepin';
 import { previews } from './preview';
+import { withOwnIds } from './svg';
 import { DEFAULT_OUTFIT } from './types';
 
 /** What <SvgXml> of react-native-svg draws the same on Android, iOS and the web. */
@@ -66,5 +67,17 @@ describe('normalizeOutfit', () => {
     expect(
       normalizeOutfit({ plant: 'baobab' as never, pot: 'gold', head: 'crown-of-thorns', eyes: null }),
     ).toEqual(DEFAULT_OUTFIT);
+  });
+});
+
+describe('withOwnIds', () => {
+  it('renames every id and its references', () => {
+    const svg = pepinSvg(DEFAULT_OUTFIT);
+    const own = withOwnIds(svg, 'r1');
+    const ids = [...own.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
+    expect(ids.length).toBeGreaterThan(0);
+    for (const id of ids) expect(id).toMatch(/^a[0-9a-z]+-r1-/);
+    for (const [, ref] of own.matchAll(/url\(#([^)]+)\)/g)) expect(ids).toContain(ref);
+    expect(own.replace(/-r1-/g, '-')).toBe(svg);
   });
 });

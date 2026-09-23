@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
-import { View, type StyleProp, type ViewStyle } from 'react-native';
+import { useId, useMemo } from 'react';
+import { Platform, View, type StyleProp, type ViewStyle } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 
 import { artSpecForSpecies, pepinSvg, plantArtSvg, type Mood, type Outfit, type PlantKind } from '@/art';
+import { withOwnIds } from '@/art/svg';
 import { useSettings } from '@/db/hooks';
 
 type ArtImageProps = {
@@ -17,6 +18,10 @@ type ArtImageProps = {
 
 /** Shows a drawing from src/art. */
 export function ArtImage({ xml, width, height = width, label, style }: ArtImageProps) {
+  // On the web, ids are shared by the whole page: each drawing gets its own.
+  // Android and iOS keep them per drawing.
+  const salt = useId().replace(/[^a-zA-Z0-9]/g, '');
+  const shown = useMemo(() => (Platform.OS === 'web' ? withOwnIds(xml, salt) : xml), [xml, salt]);
   return (
     <View
       style={[{ width, height }, style]}
@@ -24,7 +29,7 @@ export function ArtImage({ xml, width, height = width, label, style }: ArtImageP
       accessibilityRole={label ? 'image' : undefined}
       accessibilityLabel={label}
       importantForAccessibility={label ? 'yes' : 'no-hide-descendants'}>
-      <SvgXml xml={xml} width={width} height={height} />
+      <SvgXml xml={shown} width={width} height={height} />
     </View>
   );
 }
