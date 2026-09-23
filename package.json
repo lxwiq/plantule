@@ -39,11 +39,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint",
-    "build:android:preview": "npx eas-cli@latest build -p android --profile preview",
-    "build:android:production": "npx eas-cli@latest build -p android --profile production",
-    "submit:android": "npx eas-cli@latest submit -p android --profile production --latest",
-    "release:android": "npx eas-cli@latest workflow:run .eas/workflows/release-android.yml"
+    "lint": "expo lint"
   },
   "private": true
 }
