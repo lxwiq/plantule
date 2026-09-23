@@ -57,6 +57,12 @@
       ],
       "react-native-litert-lm",
       [
+        "expo-calendar",
+        {
+          "calendarPermission": "Plantule ajoute les soins de tes plantes à un agenda « Plantule » sur ce téléphone."
+        }
+      ],
+      [
         "react-native-android-widget",
         {
           "fonts": ["./node_modules/@expo-google-fonts/fraunces/600SemiBold/Fraunces_600SemiBold.ttf"],

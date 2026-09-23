@@ -5,6 +5,7 @@ import { SQLiteProvider, type SQLiteDatabase } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import { syncAgenda } from '@/agenda/phone-agenda';
 import { DATABASE_NAME, initDatabase } from '@/db/database';
 import { useCurrentPlace, usePlants, useSettings, useTasks } from '@/db/hooks';
 import { ensurePlace } from '@/db/repo';
@@ -73,6 +74,24 @@ function TodayWidgetSync() {
   return null;
 }
 
+/** Rewrites the care in the phone's agenda whenever tasks, plants, the setting or the day change. */
+function AgendaSync() {
+  const { agenda_enabled, agenda_calendar_id } = useSettings();
+  const place = useCurrentPlace();
+  const tasks = useTasks(place.id);
+  const plants = usePlants(place.id);
+  const day = useToday();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      syncAgenda({ enabled: agenda_enabled, calendarId: agenda_calendar_id, tasks, plants }).catch(() => undefined);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [agenda_enabled, agenda_calendar_id, tasks, plants, day]);
+
+  return null;
+}
+
 export default function RootLayout() {
   // The app renders once the database is open and migrated.
   return (
@@ -100,6 +119,7 @@ function App() {
       <StatusBar style="auto" />
       <DailySummarySync />
       <TodayWidgetSync />
+      <AgendaSync />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: theme.background },

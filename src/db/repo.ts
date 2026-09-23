@@ -72,6 +72,8 @@ const DEFAULT_SETTINGS: Settings = {
   daily_summary_enabled: true,
   daily_summary_time: '08:00',
   last_backup_at: null,
+  agenda_enabled: false,
+  agenda_calendar_id: null,
 };
 
 export function getSettings(): Settings {
