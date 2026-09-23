@@ -187,6 +187,7 @@ function App() {
         <Stack.Screen name="wish/[id]/index" options={{ title: '' }} />
         <Stack.Screen name="wish/[id]/edit" options={{ title: 'Modifier l’envie', presentation: 'modal' }} />
         <Stack.Screen name="settings" options={{ title: 'Réglages' }} />
+        <Stack.Screen name="pepin" options={{ title: 'Le vestiaire' }} />
         <Stack.Screen name="calendar" options={{ title: 'Calendrier' }} />
         <Stack.Screen name="scan/identify" options={{ title: 'Identification' }} />
         <Stack.Screen name="scan/sheet" options={{ title: 'Fiche espèce' }} />

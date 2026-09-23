@@ -1,9 +1,12 @@
 import { router } from 'expo-router';
 import { Alert } from 'react-native';
 
+import { Pepin } from '@/components/art';
 import { Button, Icon, icons, ListRow, ListSection, Screen, ScreenTitle } from '@/components/ui';
 import { selectPlace, useCurrentPlace, usePlaces, usePlants, useRooms } from '@/db/hooks';
 import { deletePlace } from '@/db/repo';
+import { useMascot } from '@/hooks/use-mascot';
+import { wardrobeTitle } from '@/lib/greeting';
 import { LIGHT_LABELS, plural } from '@/lib/labels';
 import { useTheme } from '@/theme';
 
@@ -14,6 +17,7 @@ export default function PlaceScreen() {
   const places = usePlaces();
   const rooms = useRooms(place.id);
   const plants = usePlants(place.id);
+  const mascot = useMascot();
 
   const plantCount = (roomId: string) => plants.filter((p) => p.room_id === roomId).length;
 
@@ -96,6 +100,16 @@ export default function PlaceScreen() {
           chevron
         />
         <ListRow leading={icons.add} title="Ajouter un lieu" onPress={() => router.push('/place/new')} chevron />
+      </ListSection>
+
+      <ListSection>
+        <ListRow
+          leading={<Pepin size={48} outfit={mascot.outfit} />}
+          title={wardrobeTitle(mascot.name)}
+          subtitle="Habille ta mascotte, change son pot ou son nom"
+          onPress={() => router.push('/pepin')}
+          chevron
+        />
       </ListSection>
 
       <ListSection>

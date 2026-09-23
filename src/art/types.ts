@@ -4,6 +4,8 @@
  * the app (through <SvgXml>), the preview script and the tests.
  */
 
+import type { PotPalette } from './palette';
+
 /** A piece of drawing: SVG elements, and the gradients or clip paths they use. */
 export type Fragment = {
   /** Elements for <defs> (gradients, clip paths). Ids go through `artId()`. */
@@ -109,6 +111,14 @@ export const DEFAULT_OUTFIT: Outfit = {
   held: null,
 };
 
+/** What an item knows of the Pépin wearing it. */
+export type WearContext = {
+  /** The pot's color id, see POT_COLORS: put it in the ids of gradients that use `pot`. */
+  potId: string;
+  /** The pot's colors, for stubby arms or a sweater that goes with the pot. */
+  pot: PotPalette;
+};
+
 /** A piece of Pépin's wardrobe. */
 export type WardrobeItem = {
   id: string;
@@ -117,8 +127,8 @@ export type WardrobeItem = {
   label: string;
   /**
    * The item on Pépin, in the pot's coordinates. `back` goes behind the pot
-   * (a hat's back brim, a mug's handle behind Pépin), `front` over it. A
-   * pattern's `front` is clipped to the pot body.
+   * (an arm coming out from behind it), `front` over it. A pattern's `front`
+   * is clipped to the pot body.
    */
-  draw: () => { back?: Fragment; front: Fragment };
+  draw: (context: WearContext) => { back?: Fragment; front: Fragment };
 };
