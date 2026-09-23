@@ -1,6 +1,7 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 
+import { Scene } from '@/components/scene';
 import { EmptyState, HeaderButton, Screen } from '@/components/ui';
 import { draftToWishInput, WishFields, wishDraft } from '@/components/wish-form';
 import { useWish } from '@/db/hooks';
@@ -11,7 +12,15 @@ import { closeScreen } from '@/lib/navigation';
 export default function EditWish() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const wish = useWish(id);
-  if (!wish) return <EmptyState title="Envie introuvable" message="Elle a peut-être été supprimée." />;
+  if (!wish) {
+    return (
+      <EmptyState
+        art={<Scene id="searching" />}
+        title="Envie introuvable"
+        message="Elle a peut-être été supprimée."
+      />
+    );
+  }
   return <EditWishForm wish={wish} />;
 }
 

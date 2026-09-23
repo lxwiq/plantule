@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { View } from 'react-native';
 
 import { radius, spacing, useTheme } from '@/theme';
@@ -8,13 +9,15 @@ import { Text } from './text';
 
 type EmptyStateProps = {
   icon?: IconName;
+  /** A drawing shown instead of the icon, such as a <Scene>. */
+  art?: ReactNode;
   title: string;
   message?: string;
   action?: { label: string; onPress: () => void; icon?: IconName };
 };
 
 /** Explains why a list is empty and offers the next step. */
-export function EmptyState({ icon = icons.leaf, title, message, action }: EmptyStateProps) {
+export function EmptyState({ icon = icons.leaf, art, title, message, action }: EmptyStateProps) {
   const theme = useTheme();
   return (
     <View
@@ -24,17 +27,19 @@ export function EmptyState({ icon = icons.leaf, title, message, action }: EmptyS
         paddingVertical: spacing.xxl,
         paddingHorizontal: spacing.xl,
       }}>
-      <View
-        style={{
-          width: 72,
-          height: 72,
-          borderRadius: radius.full,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: theme.primaryContainer,
-        }}>
-        <Icon name={icon} size={36} color={theme.onPrimaryContainer} />
-      </View>
+      {art ?? (
+        <View
+          style={{
+            width: 72,
+            height: 72,
+            borderRadius: radius.full,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: theme.primaryContainer,
+          }}>
+          <Icon name={icon} size={36} color={theme.onPrimaryContainer} />
+        </View>
+      )}
       <Text variant="title" style={{ textAlign: 'center' }}>
         {title}
       </Text>

@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 
 import { CuttingList } from '@/components/cutting-list';
 import { PlantThumb } from '@/components/plant-thumb';
+import { Scene } from '@/components/scene';
 import {
   ChoiceChips,
   EmptyState,
@@ -95,6 +96,7 @@ export default function Plants() {
         <WishList wishes={wishes} />
       ) : plants.length === 0 ? (
         <EmptyState
+          art={<Scene id="welcome" />}
           title="Aucune plante"
           message="Ajoute ta première plante : un surnom suffit, le reste peut attendre."
           action={{ label: 'Ajouter une plante', icon: icons.add, onPress: () => router.push('/plant/new') }}

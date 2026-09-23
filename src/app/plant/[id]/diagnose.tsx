@@ -8,6 +8,7 @@ import { diagnosePlant, isAbortError, modelIsWarm } from '@/ai/plant-ai';
 import { ModelCard } from '@/components/ai-model-card';
 import { AiProgress } from '@/components/ai-progress';
 import { DiagnosisSections } from '@/components/diagnosis-view';
+import { Scene } from '@/components/scene';
 import { Banner, Button, EmptyState, Icon, icons, Screen, Text } from '@/components/ui';
 import { usePlant, usePlantTasks } from '@/db/hooks';
 import { saveDiagnosis, updateTask } from '@/db/repo';
@@ -36,6 +37,7 @@ export default function DiagnoseScreen() {
     return (
       <Screen>
         <EmptyState
+          art={<Scene id="searching" />}
           title="Plante introuvable"
           message="Elle a peut-être été supprimée."
           action={{ label: 'Retour', onPress: closeScreen }}

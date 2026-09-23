@@ -2,6 +2,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert } from 'react-native';
 
+import { Scene } from '@/components/scene';
 import { draftIsValid, draftToInput, TaskFields, taskDraft } from '@/components/task-form';
 import { EmptyState, HeaderButton, icons, ListRow, ListSection, Screen } from '@/components/ui';
 import { useTask } from '@/db/hooks';
@@ -12,7 +13,15 @@ import { closeScreen } from '@/lib/navigation';
 export default function EditTask() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const task = useTask(id);
-  if (!task) return <EmptyState title="Tâche introuvable" message="Elle a peut-être été supprimée." />;
+  if (!task) {
+    return (
+      <EmptyState
+        art={<Scene id="searching" />}
+        title="Tâche introuvable"
+        message="Elle a peut-être été supprimée."
+      />
+    );
+  }
   return <EditTaskForm task={task} />;
 }
 

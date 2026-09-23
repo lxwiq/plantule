@@ -4,7 +4,8 @@ import { Alert, View } from 'react-native';
 
 import { useModelStatus } from '@/ai';
 import { ModelCard } from '@/components/ai-model-card';
-import { Button, Icon, icons, Screen, ScreenTitle, Text } from '@/components/ui';
+import { Scene } from '@/components/scene';
+import { Button, icons, Screen, ScreenTitle, Text } from '@/components/ui';
 import { pickPhoto, type PhotoSource } from '@/lib/pick-photo';
 import { radius, spacing, useTheme } from '@/theme';
 
@@ -57,17 +58,7 @@ function PhotoChoice() {
           borderCurve: 'continuous',
           backgroundColor: theme.primaryContainer,
         }}>
-        <View
-          style={{
-            width: 72,
-            height: 72,
-            borderRadius: radius.full,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: theme.primary,
-          }}>
-          <Icon name={icons.scan} size={36} color={theme.onPrimary} />
-        </View>
+        <Scene id="searching" width={200} backdrop={false} />
         <Text variant="title" color={theme.onPrimaryContainer} style={{ textAlign: 'center' }}>
           Quelle est cette plante ?
         </Text>
@@ -107,6 +98,7 @@ function PhotoChoice() {
 function ModelNeeded({ unsupported }: { unsupported: boolean }) {
   return (
     <>
+      <Scene id="searching" style={{ alignSelf: 'center' }} />
       {!unsupported && (
         <Text variant="body" tone="secondary">
           Le scan reconnaît tes plantes grâce à un modèle d’IA qui tourne sur ton téléphone, sans connexion

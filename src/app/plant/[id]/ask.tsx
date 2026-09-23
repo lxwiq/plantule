@@ -17,7 +17,8 @@ import { useModelStatus } from '@/ai';
 import { askPlant, isAbortError, modelIsWarm, type ChatTurn } from '@/ai/plant-ai';
 import { ModelCard } from '@/components/ai-model-card';
 import { ChatBubble, PendingAnswer } from '@/components/chat-view';
-import { Banner, Chip, EmptyState, Icon, IconButton, icons, Screen, Text } from '@/components/ui';
+import { Scene } from '@/components/scene';
+import { Banner, Chip, EmptyState, IconButton, icons, Screen, Text } from '@/components/ui';
 import { useChatMessages, usePlant } from '@/db/hooks';
 import { addChatMessage, clearChatMessages } from '@/db/repo';
 import type { ChatMessage, Plant } from '@/db/types';
@@ -51,6 +52,7 @@ export default function AskScreen() {
     return (
       <Screen>
         <EmptyState
+          art={<Scene id="searching" />}
           title="Plante introuvable"
           message="Elle a peut-être été supprimée."
           action={{ label: 'Retour', onPress: closeScreen }}
@@ -315,20 +317,9 @@ function Conversation({ plant }: { plant: Plant }) {
 
 /** An empty conversation: what Plantule knows, and questions to start with. */
 function Intro({ plant, onSuggestion }: { plant: Plant; onSuggestion?: (question: string) => void }) {
-  const theme = useTheme();
   return (
     <View style={{ alignItems: 'center', gap: spacing.md, paddingVertical: spacing.xl }}>
-      <View
-        style={{
-          width: 72,
-          height: 72,
-          borderRadius: radius.full,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: theme.primaryContainer,
-        }}>
-        <Icon name={icons.chat} size={36} color={theme.onPrimaryContainer} />
-      </View>
+      <Scene id="chatting" />
       <Text variant="title" style={{ textAlign: 'center' }}>
         {`Une question sur ${plant.nickname} ?`}
       </Text>

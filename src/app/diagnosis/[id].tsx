@@ -3,6 +3,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { Alert, View } from 'react-native';
 
 import { DiagnosisSections } from '@/components/diagnosis-view';
+import { Scene } from '@/components/scene';
 import { EmptyState, icons, ListRow, ListSection, Screen, Text } from '@/components/ui';
 import { useDiagnosis, usePlant } from '@/db/hooks';
 import { deleteDiagnosis } from '@/db/repo';
@@ -19,6 +20,7 @@ export default function DiagnosisScreen() {
     return (
       <Screen>
         <EmptyState
+          art={<Scene id="searching" />}
           title="Diagnostic introuvable"
           message="Il a peut-être été supprimé."
           action={{ label: 'Retour', onPress: closeScreen }}

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import { UpdateBanner } from '@/components/app-update';
+import { Scene } from '@/components/scene';
 import { TaskRow } from '@/components/task-row';
 import {
   Banner,
@@ -143,13 +144,14 @@ export default function Today() {
 
       {plants.length === 0 ? (
         <EmptyState
+          art={<Scene id="welcome" />}
           title="Aucune plante pour l’instant"
-          message="Ajoute tes plantes et leurs soins : cet écran te dira chaque jour quoi faire."
+          message="Ajoute tes plantes et leurs soins : chaque jour, cet écran te dira de qui prendre soin."
           action={{ label: 'Ajouter une plante', icon: icons.add, onPress: () => router.push('/plant/new') }}
         />
       ) : tasks.length === 0 ? (
         <EmptyState
-          icon={icons.schedule}
+          art={<Scene id="watering" />}
           title="Aucun rappel"
           message="Ouvre une plante pour lui ajouter un arrosage ou un autre soin régulier."
           action={{ label: 'Voir les plantes', onPress: () => router.navigate('/plants') }}
@@ -167,9 +169,9 @@ export default function Today() {
 
           {toDo === 0 && (
             <EmptyState
-              icon={icons.check}
+              art={<Scene id="resting" />}
               title="Rien à faire"
-              message="Toutes les plantes sont à jour. Reviens demain !"
+              message="Toutes tes plantes sont à jour. Repose-toi, et reviens demain !"
             />
           )}
           {groups.overdue.length > 0 && (

@@ -6,6 +6,7 @@ import { Pressable, View } from 'react-native';
 import { identifyPlant, isAbortError, modelIsWarm } from '@/ai/plant-ai';
 import { AiProgress } from '@/components/ai-progress';
 import { PhotoFindingsSection } from '@/components/photo-findings';
+import { Scene } from '@/components/scene';
 import {
   Banner,
   Button,
@@ -45,7 +46,7 @@ export default function IdentifyScreen() {
     return (
       <Screen>
         <EmptyState
-          icon={icons.scan}
+          art={<Scene id="searching" />}
           title="Pas de photo"
           message="Prends ou choisis une photo depuis l’onglet Scan."
           action={{ label: 'Retour', onPress: closeScreen }}

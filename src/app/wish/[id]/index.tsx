@@ -2,6 +2,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Alert, View } from 'react-native';
 
 import { Fact } from '@/components/care-sheet-view';
+import { Scene } from '@/components/scene';
 import {
   Button,
   EmptyState,
@@ -30,7 +31,7 @@ export default function WishScreen() {
     return (
       <Screen>
         <EmptyState
-          icon={icons.star}
+          art={<Scene id="searching" />}
           title="Envie introuvable"
           message="Elle a peut-être été supprimée, ou tu l’as déjà."
           action={{ label: 'Retour', onPress: closeScreen }}
