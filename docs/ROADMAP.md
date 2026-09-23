@@ -115,11 +115,11 @@ Onglets : **Aujourd'hui · Plantes · Scan · Maison**. L'onglet Maison contient
 
 ### Phase 3 — Enrichissement
 
-**Prochain lot : l'IA experte des plantes**
+**Lot livré le 23/09/2026 : l'IA experte des plantes** (APK `preview` du 23/09/2026)
 
 - [x] **Base de référence** : les plantes courantes (au moins 150) avec des données vérifiées : noms français et latins, lumière, arrosage, humidité, températures, toxicité pour les chats et les chiens, engrais, rempotage. Embarquée dans l'app. Gemma s'appuie dessus au lieu d'inventer les chiffres : la fiche d'une plante connue va plus vite et elle est plus juste. 170 plantes : noms vérifiés sur Wikidata (CC0), toxicité d’après les listes de l’ASPCA, chiffres d’entretien écrits par nous faute de source libre (détails dans [ai-engine.md](ai-engine.md))
 - [x] **Assistant « expert Plantule »** : un seul expert pour le scan, la fiche, le diagnostic et les questions, qui reçoit le contexte de la plante (espèce, fiche, derniers soins, pièce, saison)
-- [x] **« Demande à Plantule »** : poser ses questions sur une plante, avec la réponse qui s'affiche au fil de l'écriture. La conversation est gardée pour chaque plante
+- [x] **« Demande à Plantule »** : poser ses questions sur une plante, avec la réponse qui s'affiche au fil de l'écriture. La conversation est gardée pour chaque plante, et peut être effacée. Accès : la ligne « Demande à Plantule » sous le nom de la plante, avec des suggestions de questions pour commencer
 - [x] **Diagnostic santé par photo, avec Gemma 4**
   - Bouton « Diagnostiquer » sur la page d'une plante : photo rapprochée de ce qui inquiète (feuille, tige, dessous des feuilles)
   - Réponse : état (saine, à surveiller, à soigner), jusqu'à 3 problèmes probables avec leur confiance (maladie, parasite, erreur d'entretien), quoi faire maintenant
@@ -128,7 +128,7 @@ Onglets : **Aujourd'hui · Plantes · Scan · Maison**. L'onglet Maison contient
   - Chaque diagnostic est gardé avec sa photo, pour suivre l'évolution
   - Présenté comme des pistes, pas comme un verdict : le modèle ne voit ni les racines ni les parasites trop petits pour la photo
 
-**À vérifier sur le téléphone** (lot livré le 23/09/2026, essayé seulement avec le faux modèle) :
+**À vérifier sur le téléphone** (le lot n’a été essayé qu’avec le faux modèle, dans le navigateur) :
 
 - le temps d’un diagnostic, premier chargement du modèle compris ;
 - que LiteRT-LM accepte les nouveaux schémas JSON (diagnostic, textes de la fiche) ;
@@ -138,7 +138,7 @@ Onglets : **Aujourd'hui · Plantes · Scan · Maison**. L'onglet Maison contient
 - que l’identification reste aussi bonne avec les instructions de l’expert commun ;
 - le clavier de « Demande à Plantule » et les confirmations de suppression.
 
-**Ensuite**
+**Prochain lot**
 
 - [ ] Sauvegarde : exporter et réimporter ses données (fichier), pour changer de téléphone
 - [ ] Galerie de croissance : photos datées de chaque plante
@@ -162,4 +162,6 @@ Onglets : **Aujourd'hui · Plantes · Scan · Maison**. L'onglet Maison contient
 - **Longueur des réponses** : plus on demande de choses au modèle (pot, rempotage, fiche complète), plus il met de temps à répondre sur le téléphone. Une fiche n'est écrite qu'une fois par espèce, mais l'analyse de la photo se refait à chaque scan.
 - **Estimations sur photo** : le diamètre du pot et le besoin de rempotage sont des estimations, toujours modifiables avant d'enregistrer.
 - **Diagnostic santé** : les conseils restent indicatifs, à présenter comme des pistes et non comme un verdict.
+- **Chiffres de la base de référence** : les noms (Wikidata) et la toxicité (ASPCA) sont vérifiés, mais les chiffres d’entretien ont été écrits par nous faute de source libre. Ce sont des points de départ, à corriger dans `src/data/plants.ts` quand l’usage montre qu’ils sont faux. Le badge « Données vérifiées » en dit donc un peu plus qu’il ne faudrait.
+- **Questions et diagnostic sans le modèle** : « Demande à Plantule » et le diagnostic ont besoin de Gemma, donc d’un téléphone de 6 Go de RAM et du modèle téléchargé. Ailleurs, la ligne « Demande à Plantule » est masquée.
 - **Notifications sans ouvrir l'app** : les résumés sont programmés pour 30 jours. Au-delà sans ouvrir l'app, il n'y en a plus.
