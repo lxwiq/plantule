@@ -11,7 +11,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -42,7 +42,7 @@ registerHooks({
 const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
-    out: { type: 'string', default: join(tmpdir(), 'plantule-art.png') },
+    out: { type: 'string', default: join(tmpdir(), `plantule-art-${process.pid}.png`) },
     size: { type: 'string', default: '200' },
     cols: { type: 'string', default: '6' },
     dark: { type: 'boolean', default: false },
@@ -87,9 +87,20 @@ ${p.svg.replace('<svg ', `<svg width="${size}" height="${size}" `)}</div>
 const htmlFile = join(tmpdir(), `plantule-art-${process.pid}.html`);
 writeFileSync(htmlFile, html);
 const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-execFileSync(
-  chrome,
-  ['--headless', '--disable-gpu', '--hide-scrollbars', `--window-size=${width},${height}`, `--screenshot=${resolve(values.out)}`, pathToFileURL(htmlFile).href],
-  { stdio: 'ignore' },
-);
+try {
+  execFileSync(
+    chrome,
+    [
+      '--headless',
+      '--disable-gpu',
+      '--hide-scrollbars',
+      `--window-size=${width},${height}`,
+      `--screenshot=${resolve(values.out)}`,
+      pathToFileURL(htmlFile).href,
+    ],
+    { stdio: 'ignore', timeout: 60_000 },
+  );
+} finally {
+  rmSync(htmlFile, { force: true });
+}
 console.log(`${items.length} drawings → ${resolve(values.out)}`);
