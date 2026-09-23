@@ -1,6 +1,7 @@
 /** Data stored on the phone. Dates are "YYYY-MM-DD", instants are ISO strings. */
 
 import type { CareSheet } from '@/lib/care-sheet';
+import type { Diagnosis, DiagnosisStatus } from '@/lib/diagnosis';
 
 export type Light = 'full_sun' | 'bright_indirect' | 'partial_shade' | 'shade';
 
@@ -51,8 +52,11 @@ export type Plant = {
   updated_at: string;
 };
 
-/** Where a species sheet comes from. Only the on-device model for now. */
-export type SpeciesSheetSource = 'ai';
+/**
+ * Where a species sheet comes from: written by the on-device model, or with
+ * its figures from the reference base (`data.reference_id` is set).
+ */
+export type SpeciesSheetSource = 'ai' | 'reference';
 
 /** Care advice for a species, shared by every plant of that species. */
 export type SpeciesSheet = {
@@ -103,6 +107,31 @@ export type CareEvent = {
   occurred_at: string;
   postponed_days: number | null;
   note: string | null;
+};
+
+/** A health check of a plant from a photo, kept to follow how it does. */
+export type DiagnosisRecord = {
+  id: string;
+  plant_id: string;
+  /** The photo it was made from; null once that photo is deleted. */
+  photo_id: string | null;
+  /** File of the photo, joined from photos. */
+  photo_uri: string | null;
+  /** Copied from `data.status`, to list diagnoses without reading their data. */
+  status: DiagnosisStatus;
+  data: Diagnosis;
+  created_at: string;
+};
+
+export type ChatRole = 'user' | 'assistant';
+
+/** A message of the "Demande à Plantule" conversation, one per plant. */
+export type ChatMessage = {
+  id: string;
+  plant_id: string;
+  role: ChatRole;
+  text: string;
+  created_at: string;
 };
 
 export type Settings = {

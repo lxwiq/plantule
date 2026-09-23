@@ -19,6 +19,7 @@ import {
   nativePath,
 } from './model-files';
 import { formatBytes } from './model-format';
+import { textStream } from './text-stream';
 import type { GenerateRequest } from './types';
 
 type LiteRTModule = typeof import('react-native-litert-lm');
@@ -287,6 +288,7 @@ function isSchemaError(error: unknown) {
 export function generate(request: GenerateRequest): Promise<string> {
   const { signal } = request;
   return exclusive(async () => {
+    let stream: ReturnType<typeof textStream> | null = null;
     const image = request.imageUri ? await prepareImage(request.imageUri) : null;
     try {
       throwIfAborted(signal);
@@ -303,27 +305,32 @@ export function generate(request: GenerateRequest): Promise<string> {
         maxOutputTokens: Math.round(clamp(request.maxTokens ?? DEFAULT_OUTPUT_TOKENS, 1, MAX_OUTPUT_TOKENS)),
       };
       const schema = request.jsonSchema ? JSON.stringify(request.jsonSchema) : undefined;
+      // With a token callback, the engine streams the answer and still resolves with all of it.
+      stream = request.onText ? textStream(request.onText, signal) : null;
 
       const run = (responseSchema?: string) => {
+        stream?.restart();
         // Each request starts from an empty conversation with its own instructions.
         model.resetConversation(undefined, request.system);
-        return model.execute(parts, undefined, responseSchema ? { ...options, responseSchema } : options);
+        return model.execute(parts, stream?.onToken, responseSchema ? { ...options, responseSchema } : options);
       };
 
+      let answer: string;
       try {
-        return await run(schema);
+        answer = await run(schema);
       } catch (error) {
-        if (schema && !signal?.aborted && isSchemaError(error)) {
-          console.warn('[ai] schema rejected, retrying without it', error);
-          return await run();
-        }
-        throw error;
+        if (!(schema && !signal?.aborted && isSchemaError(error))) throw error;
+        console.warn('[ai] schema rejected, retrying without it', error);
+        answer = await run();
       }
+      stream?.finish(answer);
+      return answer;
     } catch (error) {
       if (error instanceof AiError || (error instanceof Error && error.name === 'AbortError')) throw error;
       console.warn('[ai] generate failed', error);
       throw new AiError('Le modèle n’a pas pu analyser la demande. Réessaie.', error);
     } finally {
+      stream?.stop();
       if (image) deleteIfExists(image);
     }
   }, signal);

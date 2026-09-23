@@ -66,11 +66,16 @@ function ProgressBar({ progress }: { progress: number }) {
   );
 }
 
+type ModelCardProps = {
+  /** Title when the phone cannot run the model, naming the feature that needs it. */
+  unsupportedTitle?: string;
+};
+
 /**
  * The model's state with what can be done about it: download (with progress),
- * cancel, retry, delete. Used in the settings and on the scan screen.
+ * cancel, retry, delete. Used in the settings and on the screens that need it.
  */
-export function ModelCard() {
+export function ModelCard({ unsupportedTitle = 'Scan indisponible' }: ModelCardProps = {}) {
   const theme = useTheme();
   const status = useModelStatus();
   const [starting, setStarting] = useState(false);
@@ -78,7 +83,7 @@ export function ModelCard() {
 
   if (status.state === 'unsupported') {
     return (
-      <Banner icon={icons.info} title="Scan indisponible">
+      <Banner icon={icons.info} title={unsupportedTitle}>
         {status.reason}
       </Banner>
     );

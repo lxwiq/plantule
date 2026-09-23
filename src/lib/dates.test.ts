@@ -32,7 +32,7 @@ describe('due dates', () => {
   const today = '2026-09-23';
 
   it('describes how soon a task is due', () => {
-    expect(formatDue('2026-09-23', today)).toBe("aujourd'hui");
+    expect(formatDue('2026-09-23', today)).toBe('aujourd’hui');
     expect(formatDue('2026-09-24', today)).toBe('demain');
     expect(formatDue('2026-09-26', today)).toBe('dans 3 jours');
     expect(formatDue('2026-09-22', today)).toBe('en retard d’1 jour');
@@ -65,9 +65,9 @@ describe('relative times', () => {
   const now = new Date(2026, 8, 23, 18, 0);
 
   it('describes recent moments', () => {
-    expect(formatRelativeTime(new Date(2026, 8, 23, 17, 59, 40).toISOString(), now)).toBe("à l'instant");
+    expect(formatRelativeTime(new Date(2026, 8, 23, 17, 59, 40).toISOString(), now)).toBe('à l’instant');
     expect(formatRelativeTime(new Date(2026, 8, 23, 17, 45).toISOString(), now)).toBe('il y a 15 min');
-    expect(formatRelativeTime(new Date(2026, 8, 23, 9, 5).toISOString(), now)).toBe("aujourd'hui à 9:05");
+    expect(formatRelativeTime(new Date(2026, 8, 23, 9, 5).toISOString(), now)).toBe('aujourd’hui à 9:05');
     expect(formatRelativeTime(new Date(2026, 8, 22, 9, 5).toISOString(), now)).toBe('hier à 9:05');
   });
 });
@@ -75,7 +75,7 @@ describe('relative times', () => {
 describe('relative days', () => {
   it('describes a past day without the time', () => {
     const today = '2026-09-23';
-    expect(formatRelativeDay('2026-09-23', today)).toBe("aujourd'hui");
+    expect(formatRelativeDay('2026-09-23', today)).toBe('aujourd’hui');
     expect(formatRelativeDay('2026-09-22', today)).toBe('hier');
     expect(formatRelativeDay('2026-09-21', today)).toBe('avant-hier');
     expect(formatRelativeDay('2026-09-19', today)).toBe('il y a 4 jours');

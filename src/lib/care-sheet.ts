@@ -8,6 +8,7 @@ import type { Light, TaskInput } from '@/db/types';
 
 import { addDays, parseDate, toDateString, today } from './dates';
 import { LIGHT_ORDER, TASK_KINDS } from './labels';
+import type { ReferencePlant } from './plant-reference';
 import { effectiveInterval, MAX_INTERVAL_DAYS } from './schedule';
 import { JsonReader, looseText, type Validation } from './validate';
 
@@ -50,6 +51,12 @@ export type CareSheet = {
   problems: CareProblem[];
   /** 2 to 5 short tips, in French. */
   tips: string[];
+  /**
+   * Id of the reference base entry (src/lib/plant-reference.ts) the figures
+   * come from, or null when the model wrote them. Not asked of the model;
+   * sheets written before the base read back with null.
+   */
+  reference_id: string | null;
 };
 
 /**
@@ -137,6 +144,38 @@ const problemText = (description: string) => ({
   description,
 });
 
+/** The texts every sheet asks for, whether the model writes the figures or not. */
+const TEXT_PROPERTIES = {
+  substrate: { type: 'string', minLength: 1, maxLength: SHORT_TEXT_LENGTH, description: 'Terreau conseillé' },
+  pot: { type: 'string', minLength: 1, maxLength: SHORT_TEXT_LENGTH, description: 'Pot conseillé' },
+  propagation: {
+    type: 'string',
+    maxLength: ADVICE_LENGTH,
+    description: 'Comment la multiplier, "" si c’est difficile à la maison',
+  },
+  problems: {
+    type: 'array',
+    minItems: 1,
+    maxItems: MAX_PROBLEMS,
+    items: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['symptom', 'cause', 'fix'],
+      properties: {
+        symptom: problemText('Ce qu’on voit'),
+        cause: problemText('Cause probable'),
+        fix: problemText('Que faire'),
+      },
+    },
+  },
+  tips: {
+    type: 'array',
+    minItems: MIN_TIPS,
+    maxItems: ASKED_MAX_TIPS,
+    items: { type: 'string', minLength: 1, maxLength: ADVICE_LENGTH },
+  },
+} as const;
+
 /** Passed to the engine, which can constrain its output to it. */
 export const CARE_SHEET_SCHEMA = {
   type: 'object',
@@ -217,34 +256,32 @@ export const CARE_SHEET_SCHEMA = {
         advice: { type: 'string', minLength: 1, maxLength: ADVICE_LENGTH, description: 'Quand et comment rempoter' },
       },
     },
-    substrate: { type: 'string', minLength: 1, maxLength: SHORT_TEXT_LENGTH, description: 'Terreau conseillé' },
-    pot: { type: 'string', minLength: 1, maxLength: SHORT_TEXT_LENGTH, description: 'Pot conseillé' },
-    propagation: {
+    ...TEXT_PROPERTIES,
+  },
+} as const;
+
+/**
+ * For a species of the reference base: the figures come from the base, so
+ * the model only writes the texts. A shorter answer, so a faster one.
+ */
+export const SHEET_TEXTS_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['watering_advice', 'repotting_advice', 'substrate', 'pot', 'propagation', 'problems', 'tips'],
+  properties: {
+    watering_advice: {
       type: 'string',
+      minLength: 1,
       maxLength: ADVICE_LENGTH,
-      description: 'Comment la multiplier, "" si c’est difficile à la maison',
+      description: 'Comment l’arroser, sans nombre de jours',
     },
-    problems: {
-      type: 'array',
-      minItems: 1,
-      maxItems: MAX_PROBLEMS,
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['symptom', 'cause', 'fix'],
-        properties: {
-          symptom: problemText('Ce qu’on voit'),
-          cause: problemText('Cause probable'),
-          fix: problemText('Que faire'),
-        },
-      },
+    repotting_advice: {
+      type: 'string',
+      minLength: 1,
+      maxLength: ADVICE_LENGTH,
+      description: 'Quand et comment la rempoter',
     },
-    tips: {
-      type: 'array',
-      minItems: MIN_TIPS,
-      maxItems: ASKED_MAX_TIPS,
-      items: { type: 'string', minLength: 1, maxLength: ADVICE_LENGTH },
-    },
+    ...TEXT_PROPERTIES,
   },
 } as const;
 
@@ -281,6 +318,52 @@ function readProblems(value: unknown): CareProblem[] {
   return problems;
 }
 
+/** The texts shared by full sheets and texts-only answers, read from `root`. */
+type SheetTextFields = Pick<CareSheet, 'substrate' | 'pot' | 'propagation' | 'problems' | 'tips'>;
+
+/**
+ * Reads the tips, substrate, pot, propagation and problems. With `strict`,
+ * missing ones are errors sent back to the model; otherwise they read as ""
+ * and [] (older sheets).
+ */
+function readTextFields(r: JsonReader, root: Record<string, unknown>, strict: boolean): SheetTextFields {
+  // Extra tips are dropped rather than sent back: not worth another run.
+  const tips = r
+    .array(root.tips, 'tips')
+    .filter((tip): tip is string => typeof tip === 'string' && tip.trim().length > 0)
+    .map((tip) => tip.trim().replace(/\s+/g, ' ').slice(0, 200))
+    .slice(0, MAX_TIPS);
+  if (Array.isArray(root.tips) && tips.length < MIN_TIPS) {
+    r.fail('tips', `entre ${MIN_TIPS} et ${MAX_TIPS} conseils attendus`, root.tips);
+  }
+  const propagation = looseText(root.propagation, ADVICE_LENGTH + CUT_SLACK);
+  if (strict && typeof root.propagation !== 'string') {
+    r.fail('propagation', 'texte attendu, "" si elle se multiplie mal à la maison', root.propagation);
+  }
+  const problems = readProblems(root.problems);
+  if (strict && problems.length === 0) {
+    r.fail(
+      'problems',
+      `entre 1 et ${MAX_PROBLEMS} problèmes attendus, chacun avec symptom, cause et fix non vides`,
+      root.problems,
+    );
+  }
+  return {
+    substrate: requiredText(r, root.substrate, 'substrate', SHORT_TEXT_LENGTH + CUT_SLACK, strict),
+    pot: requiredText(r, root.pot, 'pot', SHORT_TEXT_LENGTH + CUT_SLACK, strict),
+    propagation,
+    problems,
+    tips,
+  };
+}
+
+/** A text added after the first sheets. Placeholders ("…", "N/A") count as empty. */
+function requiredText(r: JsonReader, field: unknown, path: string, max: number, strict: boolean): string {
+  const read = looseText(field, max);
+  if (strict && !read) r.fail(path, 'texte non vide attendu', field);
+  return read;
+}
+
 /** Checks a parsed model answer and returns the typed sheet, or what is wrong with it. */
 export function validateCareSheet(
   value: unknown,
@@ -309,34 +392,8 @@ export function validateCareSheet(
     }
   }
 
-  // Extra tips are dropped rather than sent back: not worth another run.
-  const tips = r
-    .array(root.tips, 'tips')
-    .filter((tip): tip is string => typeof tip === 'string' && tip.trim().length > 0)
-    .map((tip) => tip.trim().replace(/\s+/g, ' ').slice(0, 200))
-    .slice(0, MAX_TIPS);
-  if (Array.isArray(root.tips) && tips.length < MIN_TIPS) {
-    r.fail('tips', `entre ${MIN_TIPS} et ${MAX_TIPS} conseils attendus`, root.tips);
-  }
-
-  // Fields added later. Placeholders ("…", "N/A") count as empty.
-  const text = (field: unknown, path: string, max: number) => {
-    const read = looseText(field, max);
-    if (strict && !read) r.fail(path, 'texte non vide attendu', field);
-    return read;
-  };
-  const propagation = looseText(root.propagation, ADVICE_LENGTH + CUT_SLACK);
-  if (strict && typeof root.propagation !== 'string') {
-    r.fail('propagation', 'texte attendu, "" si elle se multiplie mal à la maison', root.propagation);
-  }
-  const problems = readProblems(root.problems);
-  if (strict && problems.length === 0) {
-    r.fail(
-      'problems',
-      `entre 1 et ${MAX_PROBLEMS} problèmes attendus, chacun avec symptom, cause et fix non vides`,
-      root.problems,
-    );
-  }
+  const repottingAdvice = requiredText(r, repotting.advice, 'repotting.advice', ADVICE_LENGTH + CUT_SLACK, strict);
+  const texts = readTextFields(r, root, strict);
 
   return r.result<CareSheet>({
     common_name: r.string(root.common_name, 'common_name', 80),
@@ -364,14 +421,65 @@ export function validateCareSheet(
     misting,
     repotting: {
       interval_days: r.integer(repotting.interval_days, 'repotting.interval_days', 1, MAX_INTERVAL_DAYS),
-      advice: text(repotting.advice, 'repotting.advice', ADVICE_LENGTH + CUT_SLACK),
+      advice: repottingAdvice,
     },
-    substrate: text(root.substrate, 'substrate', SHORT_TEXT_LENGTH + CUT_SLACK),
-    pot: text(root.pot, 'pot', SHORT_TEXT_LENGTH + CUT_SLACK),
-    propagation,
-    problems,
-    tips,
+    ...texts,
+    reference_id: typeof root.reference_id === 'string' && root.reference_id.trim() ? root.reference_id.trim() : null,
   });
+}
+
+/** What the model writes for a species of the reference base: the texts, not the figures. */
+export type SheetTexts = SheetTextFields & { watering_advice: string; repotting_advice: string };
+
+/** Checks a texts-only answer (see `SHEET_TEXTS_SCHEMA`). Every text is required but propagation. */
+export function validateSheetTexts(value: unknown): Validation<SheetTexts> {
+  const r = new JsonReader();
+  const root = r.object(value, 'réponse');
+  // Some answers nest the advice like a full sheet: {"watering": {"advice": …}}.
+  const nested = (key: 'watering' | 'repotting') =>
+    typeof root[key] === 'object' && root[key] !== null ? (root[key] as Record<string, unknown>).advice : undefined;
+  const wateringAdvice = requiredText(
+    r,
+    root.watering_advice ?? nested('watering'),
+    'watering_advice',
+    ADVICE_LENGTH + CUT_SLACK,
+    true,
+  );
+  const repottingAdvice = requiredText(
+    r,
+    root.repotting_advice ?? nested('repotting'),
+    'repotting_advice',
+    ADVICE_LENGTH + CUT_SLACK,
+    true,
+  );
+  const texts = readTextFields(r, root, true);
+  return r.result<SheetTexts>({ watering_advice: wateringAdvice, repotting_advice: repottingAdvice, ...texts });
+}
+
+/**
+ * A sheet whose figures come from the reference base and texts from the
+ * model. Named after the base unless `commonName` (confirmed by the user) is
+ * given.
+ */
+export function referenceSheet(plant: ReferencePlant, texts: SheetTexts, commonName?: string | null): CareSheet {
+  return {
+    common_name: commonName?.trim() || plant.common_names[0],
+    scientific_name: plant.scientific_name,
+    light: plant.light,
+    watering: { ...plant.watering, advice: texts.watering_advice },
+    humidity: plant.humidity,
+    temperature: { ...plant.temperature },
+    toxicity: { ...plant.toxicity },
+    fertilizing: { interval_days: plant.fertilizing_interval_days },
+    misting: plant.misting_interval_days > 0 ? { interval_days: plant.misting_interval_days } : null,
+    repotting: { interval_days: plant.repotting_interval_days, advice: texts.repotting_advice },
+    substrate: texts.substrate,
+    pot: texts.pot,
+    propagation: texts.propagation,
+    problems: texts.problems,
+    tips: texts.tips,
+    reference_id: plant.id,
+  };
 }
 
 /**

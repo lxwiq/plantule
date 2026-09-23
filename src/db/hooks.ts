@@ -63,3 +63,22 @@ export function useSpeciesSheetMatch(name: string | null | undefined) {
     name ? repo.findSpeciesSheet(name) : null,
   );
 }
+
+/** Tasks of one plant, soonest first. */
+export function usePlantTasks(plantId: string) {
+  return useLiveQuery(`plant_tasks:${plantId}`, ['tasks'], () => repo.listPlantTasks(plantId));
+}
+
+/** Diagnoses of a plant, newest first, with their photo. */
+export function useDiagnoses(plantId: string) {
+  return useLiveQuery(`diagnoses:${plantId}`, ['diagnoses', 'photos'], () => repo.listDiagnoses(plantId));
+}
+
+export function useDiagnosis(diagnosisId: string) {
+  return useLiveQuery(`diagnosis:${diagnosisId}`, ['diagnoses', 'photos'], () => repo.getDiagnosis(diagnosisId));
+}
+
+/** The plant's "Demande à Plantule" conversation, oldest first. */
+export function useChatMessages(plantId: string) {
+  return useLiveQuery(`chat_messages:${plantId}`, ['chat_messages'], () => repo.listChatMessages(plantId));
+}

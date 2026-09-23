@@ -63,10 +63,10 @@ export function formatShortDate(value: string): string {
   return `${dayOfMonth(date)} ${MONTHS[date.getMonth()]}${withYear ? ` ${date.getFullYear()}` : ''}`;
 }
 
-/** "aujourd'hui", "demain", "dans 3 jours", "en retard de 2 jours"... */
+/** "aujourd’hui", "demain", "dans 3 jours", "en retard de 2 jours"... */
 export function formatDue(dueOn: string, reference = today()): string {
   const days = daysBetween(reference, dueOn);
-  if (days === 0) return "aujourd'hui";
+  if (days === 0) return 'aujourd’hui';
   if (days === 1) return 'demain';
   if (days === -1) return 'en retard d’1 jour';
   if (days < 0) return `en retard de ${-days} jours`;
@@ -75,25 +75,25 @@ export function formatDue(dueOn: string, reference = today()): string {
   return `le ${formatShortDate(dueOn)}`;
 }
 
-/** "aujourd'hui", "hier", "avant-hier", "il y a 4 jours", "le 3 mars": a past day, without the time. */
+/** "aujourd’hui", "hier", "avant-hier", "il y a 4 jours", "le 3 mars": a past day, without the time. */
 export function formatRelativeDay(value: string, reference = today()): string {
   const days = daysBetween(value, reference);
-  if (days <= 0) return "aujourd'hui";
+  if (days <= 0) return 'aujourd’hui';
   if (days === 1) return 'hier';
   if (days === 2) return 'avant-hier';
   if (days < 7) return `il y a ${days} jours`;
   return `le ${formatShortDate(value)}`;
 }
 
-/** "à l'instant", "il y a 5 min", "hier à 9:30", "le 3 mars"... */
+/** "à l’instant", "il y a 5 min", "hier à 9:30", "le 3 mars"... */
 export function formatRelativeTime(iso: string, now = new Date()): string {
   const date = new Date(iso);
   const minutes = Math.round((now.getTime() - date.getTime()) / 60_000);
   const time = `${date.getHours()}:${pad(date.getMinutes())}`;
-  if (minutes < 1) return "à l'instant";
+  if (minutes < 1) return 'à l’instant';
   if (minutes < 60) return `il y a ${minutes} min`;
   const days = daysBetween(toDateString(date), toDateString(now));
-  if (days === 0) return `aujourd'hui à ${time}`;
+  if (days === 0) return `aujourd’hui à ${time}`;
   if (days === 1) return `hier à ${time}`;
   if (days < 7) return `${WEEKDAYS[date.getDay()]} à ${time}`;
   return `le ${formatShortDate(toDateString(date))}`;

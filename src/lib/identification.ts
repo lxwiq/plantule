@@ -6,6 +6,7 @@
  */
 
 import { speciesKey } from './care-sheet';
+import { findReference, sameGenus } from './plant-reference';
 import { enumKey, JsonReader, looseText, type Validation } from './validate';
 
 export type SpeciesCandidate = {
@@ -14,6 +15,12 @@ export type SpeciesCandidate = {
   common_name: string;
   /** From 0 to 1, as estimated by the model: a hint, not a probability. */
   confidence: number;
+  /**
+   * The reference base entry it matches (src/lib/plant-reference.ts), or
+   * null. Set by `validateIdentification`, which then also gives the
+   * candidate the base's names.
+   */
+  reference_id?: string | null;
 };
 
 export type PotMaterial = 'terracotta' | 'plastic' | 'ceramic' | 'other' | 'none' | 'unknown';
@@ -265,9 +272,33 @@ function readFindings(value: unknown): PhotoFindings {
 }
 
 /**
- * Checks a parsed model answer. Candidates are sorted, deduplicated and cut
- * to three; a confidence written as a percentage (85) becomes 0.85. Only the
- * species can fail it: the photo findings fall back to unknown.
+ * The candidate linked to the reference base: found by its scientific name,
+ * or by its common name when the genus agrees (a model sometimes writes an
+ * old or made-up scientific name next to a right common name). A linked
+ * candidate takes the base's scientific name, and its first common name
+ * unless the model's one is also the base's.
+ */
+export function linkCandidate(candidate: SpeciesCandidate): SpeciesCandidate {
+  const byName = findReference(candidate.scientific_name);
+  const byCommonName = byName ? null : findReference(candidate.common_name);
+  const reference =
+    byName ?? (byCommonName && sameGenus(byCommonName, candidate.scientific_name) ? byCommonName : null);
+  if (!reference) return { ...candidate, reference_id: null };
+  const commonName =
+    findReference(candidate.common_name)?.id === reference.id ? candidate.common_name : reference.common_names[0];
+  return {
+    ...candidate,
+    scientific_name: reference.scientific_name,
+    common_name: commonName,
+    reference_id: reference.id,
+  };
+}
+
+/**
+ * Checks a parsed model answer. Candidates are linked to the reference base,
+ * sorted, deduplicated and cut to three; a confidence written as a
+ * percentage (85) becomes 0.85. Only the species can fail it: the photo
+ * findings fall back to unknown.
  */
 export function validateIdentification(value: unknown): Validation<Identification> {
   const r = new JsonReader();
@@ -282,11 +313,13 @@ export function validateIdentification(value: unknown): Validation<Identificatio
     const raw = candidate.confidence;
     const number = typeof raw === 'string' ? Number.parseFloat(raw.replace(',', '.')) : raw;
     const confidence = typeof number === 'number' && number > 1 && number <= 100 ? number / 100 : number;
-    candidates.push({
-      scientific_name: speciesKey(r.string(candidate.scientific_name, `${path}.scientific_name`, 80)),
-      common_name: r.string(candidate.common_name, `${path}.common_name`, 80),
-      confidence: r.number(confidence, `${path}.confidence`, 0, 1),
-    });
+    candidates.push(
+      linkCandidate({
+        scientific_name: speciesKey(r.string(candidate.scientific_name, `${path}.scientific_name`, 80)),
+        common_name: r.string(candidate.common_name, `${path}.common_name`, 80),
+        confidence: r.number(confidence, `${path}.confidence`, 0, 1),
+      }),
+    );
   });
 
   const seen = new Set<string>();

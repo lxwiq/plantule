@@ -101,6 +101,29 @@ const MIGRATIONS: string[] = [
   alter table plants add column species_sheet_id text references species_sheets (id) on delete set null;
   create index plants_sheet_idx on plants (species_sheet_id);
   `,
+  // 3: health checks from a photo, and the "Demande à Plantule" conversation
+  // of each plant. Both go with their plant.
+  `
+  create table diagnoses (
+    id text primary key,
+    plant_id text not null references plants (id) on delete cascade,
+    photo_id text references photos (id) on delete set null,
+    status text not null check (status in ('healthy', 'watch', 'treat')),
+    data text not null,
+    created_at text not null
+  );
+  create index diagnoses_plant_idx on diagnoses (plant_id, created_at);
+  create index diagnoses_photo_idx on diagnoses (photo_id);
+
+  create table chat_messages (
+    id text primary key,
+    plant_id text not null references plants (id) on delete cascade,
+    role text not null check (role in ('user', 'assistant')),
+    text text not null,
+    created_at text not null
+  );
+  create index chat_messages_plant_idx on chat_messages (plant_id, created_at);
+  `,
 ];
 
 export const DATABASE_NAME = 'plantule.db';
@@ -125,6 +148,12 @@ let instance: SQLiteDatabase | null = null;
  */
 export async function initDatabase(db: SQLiteDatabase) {
   await db.execAsync('pragma journal_mode = wal; pragma foreign_keys = on;');
+  if (__DEV__) {
+    // Deletes cascade through foreign keys (a plant's tasks, photos, diagnoses…),
+    // which SQLite only enforces on a connection that turned them on.
+    const row = await db.getFirstAsync<{ foreign_keys: number }>('pragma foreign_keys');
+    if (row?.foreign_keys !== 1) console.warn('SQLite foreign keys are off: deletes will not cascade.');
+  }
   await migrate(db);
   instance = db;
 }

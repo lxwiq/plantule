@@ -98,7 +98,7 @@ function SheetFlow({ species, commonName, photoUri, plantId, findings, refresh }
     // Cancelled when leaving the screen.
     const controller = new AbortController();
     generateCareSheet({ scientificName, commonName: name }, { signal: controller.signal })
-      .then((generated) => saveSpeciesSheet(generated, 'ai').id)
+      .then((generated) => saveSpeciesSheet(generated, generated.reference_id ? 'reference' : 'ai').id)
       .then(setSheetId, (e) => {
         // Cancelled on purpose: nothing to say.
         if (controller.signal.aborted) return;

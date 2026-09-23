@@ -30,6 +30,11 @@ export type GenerateRequest = {
   /** JSON Schema the answer must follow, when the engine can constrain its output. Otherwise ignored. */
   jsonSchema?: object;
   signal?: AbortSignal;
+  /**
+   * Called as the answer is written, with the whole text so far (not just the
+   * new piece), a few times per second at most.
+   */
+  onText?: (text: string) => void;
 };
 
 export interface AiEngine {

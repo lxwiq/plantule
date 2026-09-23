@@ -1,19 +1,30 @@
 /**
  * A pretend model for development (browser, Expo Go), turned on with
  * EXPO_PUBLIC_FAKE_AI=1. It answers like the real one would, after a short
- * delay: a Monstera with two look-alikes for any photo (in a terracotta pot
- * that needs repotting), and a care sheet for the species named in the
- * prompt. Deleting it from the model card and downloading it again shows the
- * "not ready" states.
+ * delay:
+ * - a scan photo: a Monstera with two look-alikes (in a terracotta pot that
+ *   needs repotting);
+ * - a diagnosis photo: in turn a plant to treat (too much water, with a
+ *   longer watering interval), one to watch (not enough light) and a healthy
+ *   one;
+ * - a sheet: the whole sheet for the species named in the prompt, or its
+ *   texts only for a species of the reference base (the app adds the base's
+ *   figures);
+ * - a question: a short answer written word by word through `onText`.
+ * Deleting it from the model card and downloading it again shows the "not
+ * ready" states.
  */
 
 import type { CareSheet } from '@/lib/care-sheet';
+import type { Diagnosis } from '@/lib/diagnosis';
 import type { Identification } from '@/lib/identification';
 
 import type { AiEngine, GenerateRequest, ModelStatus } from './types';
 
 const SIZE_BYTES = 2_600_000_000;
 const ANSWER_DELAY_MS = 1500;
+/** A chat answer is written a word at a time, about ten words a second. */
+const WORD_DELAY_MS = 90;
 
 let status: ModelStatus = { state: 'ready', sizeBytes: SIZE_BYTES };
 const listeners = new Set<() => void>();
@@ -99,6 +110,7 @@ const SHEETS: CareSheet[] = [
       'Dépoussière ses grandes feuilles avec un chiffon humide.',
       'Évite le soleil direct de l’après-midi, qui brûle les feuilles.',
     ],
+    reference_id: null,
   },
   {
     common_name: 'Philodendron selloum',
@@ -137,6 +149,7 @@ const SHEETS: CareSheet[] = [
       'Il prend vite de la place : prévois-lui un coin spacieux.',
       'Tourne le pot d’un quart de tour chaque mois pour qu’il pousse droit.',
     ],
+    reference_id: null,
   },
   {
     common_name: 'Mini monstera',
@@ -180,6 +193,7 @@ const SHEETS: CareSheet[] = [
       'Grimpante : donne-lui un tuteur ou laisse-la retomber d’une étagère.',
       'Une salle de bain lumineuse lui convient très bien.',
     ],
+    reference_id: null,
   },
 ];
 
@@ -223,11 +237,122 @@ function genericSheet(name: string): CareSheet {
       'Place-la près d’une fenêtre, sans soleil brûlant.',
       'Réduis les arrosages en hiver, quand elle pousse moins.',
     ],
+    reference_id: null,
   };
 }
 
-function answer(request: GenerateRequest): string {
-  if (request.imageUri) return JSON.stringify(IDENTIFICATION);
+const DIAGNOSES: Diagnosis[] = [
+  {
+    status: 'treat',
+    summary:
+      'Les feuilles jaunes et molles, avec un terreau souvent encore humide, font penser à trop d’eau. Ce sont des pistes à vérifier.',
+    problems: [
+      {
+        name: 'Excès d’arrosage',
+        kind: 'care',
+        confidence: 0.7,
+        signs: 'Feuilles du bas jaunes et molles, terreau encore humide plusieurs fois de suite.',
+        actions: [
+          'Laisse sécher le terreau sur 3 cm avant d’arroser.',
+          'Vide la soucoupe après chaque arrosage.',
+          'Vérifie que le pot est bien percé.',
+        ],
+      },
+      {
+        name: 'Pourriture des racines',
+        kind: 'disease',
+        confidence: 0.3,
+        signs: 'La base des tiges paraît sombre.',
+        actions: ['Dépote-la et coupe les racines brunes et molles.', 'Rempote dans un terreau sec et drainant.'],
+      },
+    ],
+    watering_change: 'less',
+    light_change: 'none',
+  },
+  {
+    status: 'watch',
+    summary: 'Elle s’étire vers la lumière : rien de grave, mais elle serait mieux plus près d’une fenêtre.',
+    problems: [
+      {
+        name: 'Manque de lumière',
+        kind: 'environment',
+        confidence: 0.6,
+        signs: 'Tiges longues et nouvelles feuilles plus petites.',
+        actions: ['Rapproche-la d’une fenêtre lumineuse, sans soleil brûlant.'],
+      },
+      {
+        name: 'Araignées rouges',
+        kind: 'pest',
+        confidence: 0.2,
+        signs: 'Feuilles un peu ternes.',
+        actions: ['Regarde le dessous des feuilles à la loupe.', 'Douche le feuillage à l’eau tiède.'],
+      },
+    ],
+    watering_change: 'none',
+    light_change: 'more',
+  },
+  {
+    status: 'healthy',
+    summary: 'Elle a l’air en forme : feuilles fermes et bien vertes. Continue comme ça.',
+    problems: [],
+    watering_change: 'none',
+    light_change: 'none',
+  },
+];
+let diagnoses = 0;
+
+const CHAT_ANSWERS: { words: RegExp; answer: string }[] = [
+  {
+    words: /jaun/i,
+    answer:
+      'Des feuilles qui jaunissent viennent le plus souvent d’un excès d’eau. Touche le terreau : s’il est encore humide à deux doigts de profondeur, attends avant d’arroser et vide la soucoupe. Si seules les vieilles feuilles du bas jaunissent, c’est souvent normal.',
+  },
+  {
+    words: /rempot/i,
+    answer:
+      'Le meilleur moment pour la rempoter, c’est au printemps, de mars à mai. Fais-le quand les racines sortent par le trou du pot. Prends un pot 2 à 3 cm plus large, percé, avec un terreau frais, puis arrose bien.',
+  },
+  {
+    words: /plac|où|lumi|soleil|fenêtre/i,
+    answer:
+      'Mets-la près d’une fenêtre lumineuse, mais sans soleil direct l’après-midi, qui brûle les feuilles. Évite les radiateurs et les courants d’air. Si ses tiges s’étirent, c’est qu’elle manque de lumière.',
+  },
+];
+const CHAT_FALLBACK =
+  'Je ne peux pas te répondre avec certitude sans en savoir plus. Décris-moi ce que tu vois sur la plante, ou fais un diagnostic avec une photo prise de près.';
+
+/** The texts of a sheet, as asked for a species of the reference base. */
+function sheetTexts(sheet: CareSheet) {
+  return {
+    watering_advice: sheet.watering.advice,
+    repotting_advice: sheet.repotting.advice,
+    substrate: sheet.substrate,
+    pot: sheet.pot,
+    propagation: sheet.propagation,
+    problems: sheet.problems,
+    tips: sheet.tips,
+  };
+}
+
+/** Field names the request's JSON Schema asks for. */
+function schemaFields(request: GenerateRequest): readonly string[] {
+  return (request.jsonSchema as { required?: readonly string[] } | undefined)?.required ?? [];
+}
+
+/** The answer, and whether it is free text written word by word. */
+function answer(request: GenerateRequest): { text: string; words: boolean } {
+  const fields = schemaFields(request);
+  if (request.imageUri && fields.includes('status')) {
+    const diagnosis = DIAGNOSES[diagnoses++ % DIAGNOSES.length];
+    return { text: JSON.stringify(diagnosis), words: false };
+  }
+  if (request.imageUri) return { text: JSON.stringify(IDENTIFICATION), words: false };
+  // Questions end the prompt with "Question : …", after the plant's context.
+  const question = request.prompt.match(/^Question : (.+)$/m)?.[1];
+  if (question) {
+    const text = CHAT_ANSWERS.find(({ words }) => words.test(question))?.answer ?? CHAT_FALLBACK;
+    return { text, words: true };
+  }
   // The sheet prompt names the species between « ».
   const name = request.prompt.match(/«\s*([^»]+?)\s*»/)?.[1] ?? 'Plante inconnue';
   const sheet =
@@ -236,10 +361,22 @@ function answer(request: GenerateRequest): string {
         s.scientific_name.toLowerCase() === name.toLowerCase() ||
         s.common_name.toLowerCase() === name.toLowerCase(),
     ) ?? genericSheet(name);
+  if (fields.includes('watering_advice')) return { text: JSON.stringify(sheetTexts(sheet)), words: false };
   // Written as the schema asks (misting 0 for none), wrapped in a code fence
   // as small models like to do.
   const json = JSON.stringify({ ...sheet, misting: sheet.misting ?? { interval_days: 0 } }, null, 2);
-  return `Voici la fiche :\n\`\`\`json\n${json}\n\`\`\``;
+  return { text: `Voici la fiche :\n\`\`\`json\n${json}\n\`\`\``, words: false };
+}
+
+/** Writes `text` a word at a time through `onText`, like the real model streams it. */
+async function writeWords(text: string, { onText, signal }: GenerateRequest): Promise<string> {
+  let written = '';
+  for (const word of text.split(' ')) {
+    await wait(WORD_DELAY_MS, signal);
+    written = written ? `${written} ${word}` : word;
+    onText?.(written);
+  }
+  return written;
 }
 
 export const fakeEngine: AiEngine = {
@@ -283,6 +420,7 @@ export const fakeEngine: AiEngine = {
   async generate(request) {
     if (status.state !== 'ready') throw new Error('Le modèle n’est pas encore téléchargé.');
     await wait(ANSWER_DELAY_MS, request.signal);
-    return answer(request);
+    const reply = answer(request);
+    return reply.words ? writeWords(reply.text, request) : reply.text;
   },
 };

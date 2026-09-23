@@ -1,13 +1,19 @@
 import { describe, expect, it } from '@jest/globals';
 
 import {
+  CARE_SHEET_SCHEMA,
   careSheetTasks,
   isSheetComplete,
   nextRepotDay,
+  referenceSheet,
+  SHEET_TEXTS_SCHEMA,
   toxicityText,
   validateCareSheet,
+  validateSheetTexts,
   type CareSheet,
+  type SheetTexts,
 } from './care-sheet';
+import { getReference } from './plant-reference';
 
 const monstera: CareSheet = {
   common_name: 'Faux philodendron',
@@ -28,6 +34,7 @@ const monstera: CareSheet = {
     { symptom: 'Feuilles sans découpes', cause: 'Manque de lumière', fix: 'Rapproche-la d’une fenêtre.' },
   ],
   tips: ['Donne-lui un tuteur.', 'Dépoussière les feuilles.'],
+  reference_id: null,
 };
 
 /** A sheet stored before repotting advice, substrate, pot, propagation and problems existed. */
@@ -112,9 +119,9 @@ describe('fields added to the sheets', () => {
 
   it('requires them from a new sheet, and says so to the model', () => {
     expect(errorsOf(olderSheet, true)).toEqual([
+      'repotting.advice : texte non vide attendu (reçu : absent)',
       'propagation : texte attendu, "" si elle se multiplie mal à la maison (reçu : absent)',
       'problems : entre 1 et 3 problèmes attendus, chacun avec symptom, cause et fix non vides (reçu : absent)',
-      'repotting.advice : texte non vide attendu (reçu : absent)',
       'substrate : texte non vide attendu (reçu : absent)',
       'pot : texte non vide attendu (reçu : absent)',
     ]);
@@ -169,6 +176,92 @@ describe('fields added to the sheets', () => {
     const older = validateCareSheet(olderSheet);
     expect(older.ok && isSheetComplete(older.value)).toBe(false);
     expect(isSheetComplete({ ...monstera, problems: [] })).toBe(false);
+  });
+});
+
+describe('sheets from the reference base', () => {
+  const texts: SheetTexts = {
+    watering_advice: 'Laisse sécher le dessus du terreau entre deux arrosages.',
+    repotting_advice: 'Au printemps, dans un pot 3 à 5 cm plus large.',
+    substrate: monstera.substrate,
+    pot: monstera.pot,
+    propagation: monstera.propagation,
+    problems: monstera.problems,
+    tips: monstera.tips,
+  };
+  const reference = getReference('monstera-deliciosa')!;
+
+  it('takes the figures from the base and the texts from the model', () => {
+    expect(referenceSheet(reference, texts)).toEqual({
+      common_name: 'Faux philodendron',
+      scientific_name: 'Monstera deliciosa',
+      light: 'bright_indirect',
+      watering: { interval_days: 7, winter_factor: 1.5, advice: texts.watering_advice },
+      humidity: 'medium',
+      temperature: { min_c: 15, max_c: 30 },
+      toxicity: { cats: 'toxic', dogs: 'toxic' },
+      fertilizing: { interval_days: 14 },
+      misting: null,
+      repotting: { interval_days: 730, advice: texts.repotting_advice },
+      substrate: texts.substrate,
+      pot: texts.pot,
+      propagation: texts.propagation,
+      problems: texts.problems,
+      tips: texts.tips,
+      reference_id: 'monstera-deliciosa',
+    });
+  });
+
+  it('keeps the common name the user confirmed, and the misting of the base', () => {
+    const sheet = referenceSheet(getReference('goeppertia-orbifolia')!, texts, ' Calathea ');
+    expect(sheet.common_name).toBe('Calathea');
+    expect(sheet.scientific_name).toBe('Goeppertia orbifolia');
+    expect(sheet.misting).toEqual({ interval_days: 3 });
+  });
+
+  it('reads back from the database with its reference', () => {
+    const sheet = referenceSheet(reference, texts);
+    expect(validateCareSheet(JSON.parse(JSON.stringify(sheet)), { strict: true })).toEqual({ ok: true, value: sheet });
+    expect(isSheetComplete(sheet)).toBe(true);
+    expect(careSheetTasks(sheet, '2026-09-23').map((t) => [t.kind, t.interval_days])).toEqual([
+      ['water', 7],
+      ['fertilize', 14],
+      ['repot', 730],
+    ]);
+  });
+
+  it('asks the model for the texts only', () => {
+    expect(SHEET_TEXTS_SCHEMA.required).toEqual([
+      'watering_advice',
+      'repotting_advice',
+      'substrate',
+      'pot',
+      'propagation',
+      'problems',
+      'tips',
+    ]);
+    // The same limits as a whole sheet.
+    expect(SHEET_TEXTS_SCHEMA.properties.problems).toEqual(CARE_SHEET_SCHEMA.properties.problems);
+    expect(JSON.stringify(SHEET_TEXTS_SCHEMA)).not.toMatch(/interval_days|min_c|anyOf|oneOf/);
+  });
+
+  it('checks the texts the model wrote', () => {
+    expect(validateSheetTexts(JSON.parse(JSON.stringify(texts)))).toEqual({ ok: true, value: texts });
+    // Advice nested like in a whole sheet is fine too.
+    const { watering_advice, repotting_advice, ...rest } = texts;
+    const nested = validateSheetTexts({
+      ...rest,
+      watering: { advice: watering_advice },
+      repotting: { advice: repotting_advice },
+    });
+    expect(nested).toEqual({ ok: true, value: texts });
+    const result = validateSheetTexts({ ...rest, pot: '…', tips: ['Un seul'] });
+    expect(result.ok ? [] : result.errors).toEqual([
+      'watering_advice : texte non vide attendu (reçu : absent)',
+      'repotting_advice : texte non vide attendu (reçu : absent)',
+      'tips : entre 2 et 5 conseils attendus (reçu : ["Un seul"])',
+      'pot : texte non vide attendu (reçu : "…")',
+    ]);
   });
 });
 

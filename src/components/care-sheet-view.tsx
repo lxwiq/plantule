@@ -17,6 +17,10 @@ import { spacing, touchTarget, useTheme } from '@/theme';
 /** Goes with every sheet: the advice comes from a small model. */
 export const SHEET_DISCLAIMER = 'Conseils indicatifs, générés sur ton téléphone.';
 
+/** For a sheet whose figures come from the reference base (`reference_id` is set). */
+export const SHEET_VERIFIED =
+  'Lumière, arrosage, humidité, températures, toxicité, engrais et rempotage viennent de la base de référence de Plantule.';
+
 /** For a sheet `isSheetComplete` rejects, usually written before these parts existed. */
 export const SHEET_INCOMPLETE =
   'Des parties manquent : conseils de rempotage, substrat, pot conseillé, problèmes fréquents… Le modèle peut réécrire la fiche en entier, sur ton téléphone.';
@@ -56,6 +60,26 @@ export function Fact({ icon, label, value, detail, warn = false }: FactProps) {
             {detail}
           </Text>
         ) : null}
+      </View>
+    </View>
+  );
+}
+
+/** The sheet's figures come from the reference base, not from the model. */
+function Verified() {
+  const theme = useTheme();
+  return (
+    <View
+      accessible
+      style={{ flexDirection: 'row', gap: spacing.lg, paddingHorizontal: spacing.lg, paddingVertical: spacing.md }}>
+      <Icon name={icons.verified} size={22} color={theme.primary} style={{ marginTop: 2 }} />
+      <View style={{ flex: 1, gap: spacing.xxs }}>
+        <Text variant="bodyStrong" tone="primary">
+          Données vérifiées
+        </Text>
+        <Text variant="subhead" tone="secondary">
+          {SHEET_VERIFIED}
+        </Text>
       </View>
     </View>
   );
@@ -174,6 +198,7 @@ export function CareSheetSections({
             }
           />
         ) : null}
+        {sheet.reference_id ? <Verified /> : null}
         <Fact icon={icons.light} label="Lumière" value={LIGHT_LABELS[sheet.light]} />
         <Fact icon={TASK_KINDS.water.icon} label="Arrosage" value={watering} detail={sheet.watering.advice} />
         <Fact icon={icons.wet} label="Humidité de l’air" value={HUMIDITY_LABELS[sheet.humidity]} />

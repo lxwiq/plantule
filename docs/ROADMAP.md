@@ -40,11 +40,12 @@ Application Android de gestion des plantes. Usage perso : moi et mes proches, ch
 | Lieu | nom |
 | Pièce / zone | lieu, nom, exposition, intérieur ou extérieur |
 | Plante | lieu, surnom, espèce, fiche espèce, pièce, date d'arrivée, pot et substrat, notes, photo principale |
-| Fiche espèce | nom commun et latin, lumière, arrosage, humidité, température, toxicité pour les chats et les chiens, rythme d'engrais, de brumisation et de rempotage, conseils de rempotage, substrat et pot conseillés, problèmes fréquents, bouturage, conseils. Générée par Gemma et partagée par les plantes de la même espèce |
+| Fiche espèce | nom commun et latin, lumière, arrosage, humidité, température, toxicité pour les chats et les chiens, rythme d'engrais, de brumisation et de rempotage, conseils de rempotage, substrat et pot conseillés, problèmes fréquents, bouturage, conseils. Partagée par les plantes de la même espèce. Pour une espèce de la base de référence, les chiffres viennent de la base et Gemma écrit les conseils ; sinon Gemma écrit tout |
 | Tâche d'entretien | plante, type, intervalle en jours, ajustement hiver, dernière fois faite (peut être indiquée à l'ajout de la plante), prochaine échéance |
 | Journal | plante, type d'action, date, note |
 | Photo | plante, date, fichier |
-| Diagnostic (phase 3) | plante, date, photo, état (saine, à surveiller, à soigner), problèmes probables avec leur confiance, conseils, changement d'entretien proposé |
+| Diagnostic | plante, date, photo, état (saine, à surveiller, à soigner), problèmes probables avec leur confiance, conseils, changement d'entretien proposé |
+| Conversation | plante, rôle (moi ou Plantule), texte, date |
 | Réglages | lieu affiché, résumé quotidien activé, heure du résumé |
 
 ## Règles métier
@@ -116,10 +117,10 @@ Onglets : **Aujourd'hui · Plantes · Scan · Maison**. L'onglet Maison contient
 
 **Prochain lot : l'IA experte des plantes**
 
-- [ ] **Base de référence** : les plantes courantes (au moins 150) avec des données vérifiées : noms français et latins, lumière, arrosage, humidité, températures, toxicité pour les chats et les chiens, engrais, rempotage. Embarquée dans l'app. Gemma s'appuie dessus au lieu d'inventer les chiffres : la fiche d'une plante connue va plus vite et elle est plus juste. Source libre de droits à trouver, sinon base constituée et recoupée par nous
-- [ ] **Assistant « expert Plantule »** : un seul expert pour le scan, la fiche, le diagnostic et les questions, qui reçoit le contexte de la plante (espèce, fiche, derniers soins, pièce, saison)
-- [ ] **« Demande à Plantule »** : poser ses questions sur une plante, avec la réponse qui s'affiche au fil de l'écriture. La conversation est gardée pour chaque plante
-- [ ] **Diagnostic santé par photo, avec Gemma 4**
+- [x] **Base de référence** : les plantes courantes (au moins 150) avec des données vérifiées : noms français et latins, lumière, arrosage, humidité, températures, toxicité pour les chats et les chiens, engrais, rempotage. Embarquée dans l'app. Gemma s'appuie dessus au lieu d'inventer les chiffres : la fiche d'une plante connue va plus vite et elle est plus juste. 170 plantes : noms vérifiés sur Wikidata (CC0), toxicité d’après les listes de l’ASPCA, chiffres d’entretien écrits par nous faute de source libre (détails dans [ai-engine.md](ai-engine.md))
+- [x] **Assistant « expert Plantule »** : un seul expert pour le scan, la fiche, le diagnostic et les questions, qui reçoit le contexte de la plante (espèce, fiche, derniers soins, pièce, saison)
+- [x] **« Demande à Plantule »** : poser ses questions sur une plante, avec la réponse qui s'affiche au fil de l'écriture. La conversation est gardée pour chaque plante
+- [x] **Diagnostic santé par photo, avec Gemma 4**
   - Bouton « Diagnostiquer » sur la page d'une plante : photo rapprochée de ce qui inquiète (feuille, tige, dessous des feuilles)
   - Réponse : état (saine, à surveiller, à soigner), jusqu'à 3 problèmes probables avec leur confiance (maladie, parasite, erreur d'entretien), quoi faire maintenant
   - Le modèle reçoit le contexte que l'app connaît : espèce et sa fiche, derniers arrosages, « terreau encore humide », lumière de la pièce, saison. C'est ce qui aide à distinguer trop d'eau et pas assez
@@ -127,148 +128,15 @@ Onglets : **Aujourd'hui · Plantes · Scan · Maison**. L'onglet Maison contient
   - Chaque diagnostic est gardé avec sa photo, pour suivre l'évolution
   - Présenté comme des pistes, pas comme un verdict : le modèle ne voit ni les racines ni les parasites trop petits pour la photo
 
-#### Plan de la prochaine session (2 agents)
+**À vérifier sur le téléphone** (lot livré le 23/09/2026, essayé seulement avec le faux modèle) :
 
-À lire avant de commencer : `AGENTS.md`, `README.md`, [ai-engine.md](ai-engine.md), puis le code de `src/ai/`, `src/lib/care-sheet.ts`, `src/lib/identification.ts`, `src/db/`, `src/app/scan/` et `src/app/plant/[id]/index.tsx`.
-
-**Déroulé.** La session principale pose d'abord le contrat ci-dessous (types et fonctions vides qui compilent), puis lance les deux agents en parallèle, chacun sur ses fichiers. À la fin, elle vérifie l'ensemble, coche la roadmap et demande avant de pousser sur `main`.
-
-**Règles communes aux deux agents**
-
-- Pas de serveur, pas de compte, pas d'EAS : tout reste sur le téléphone. Aucune nouvelle dépendance native sans le signaler.
-- Interface en français, en tutoyant, avec l'apostrophe ’. Commentaires du code en anglais. Design system `src/components/ui` et tokens de `src/theme`, jamais de couleur en dur.
-- Pas de `git checkout`, `stash`, `reset` ou `clean`, pas de commit. Ne pas toucher aux fichiers de l'autre agent. Des erreurs de typecheck dans ses fichiers sont du travail en cours.
-- Vérifier avant de rendre : `npx tsc --noEmit`, `npx expo lint`, `npm test`. Pour voir les écrans, le navigateur avec `EXPO_PUBLIC_FAKE_AI=1` (voir le README pour les en-têtes COEP/COOP que demande expo-sqlite).
-
-**Limites du moteur, à respecter partout**
-
-- Ne jamais passer de `temperature` : la changer recharge le modèle.
-- Une seule génération à la fois. Annuler rejette tout de suite, mais le calcul natif continue jusqu'au bout : pas de relance automatique après une annulation.
-- Contexte de 4 096 jetons au total : instructions, contexte, image (environ 280 jetons) et réponse. Le contexte de la plante doit tenir dans environ 600 jetons.
-- Schémas JSON simples, sans `anyOf` ni `oneOf` : utiliser `0` ou `""` pour « rien ». Garder l'extraction et la validation indulgentes (`src/ai/plant-ai.ts`, `src/lib/validate.ts`).
-- La première génération après l'ouverture de l'app charge le modèle et peut prendre une minute.
-- La génération au fil de l'eau existe : `execute(parts, onToken, options)` de react-native-litert-lm. Aujourd'hui `src/ai/model-runtime.ts` passe `undefined` à la place de `onToken`.
-
-**Contrat posé par la session principale**
-
-1. `src/ai/types.ts` : ajouter `onText?: (text: string) => void` à `GenerateRequest`. Il reçoit le texte déjà écrit à chaque nouveau morceau.
-2. `src/lib/plant-reference.ts` :
-   - un type `ReferencePlant` avec :
-     - `id`, `scientific_name`, `synonyms: string[]`, `common_names: string[]` en français ;
-     - `light`, `watering: { interval_days, winter_factor }`, `humidity`, `temperature: { min_c, max_c }` ;
-     - `toxicity: { cats, dogs }` ;
-     - `fertilizing_interval_days`, `misting_interval_days` (0 si aucune), `repotting_interval_days` ;
-     - `sources: string[]` ;
-   - `findReference(name: string): ReferencePlant | null`, qui ignore la casse et les accents, et cherche dans le nom latin, les synonymes et les noms communs ;
-   - `referenceFacts(plant): string`, le résumé en français donné au modèle.
-3. `src/lib/care-sheet.ts` : `CareSheet.reference_id: string | null`, qui vaut `null` à la relecture des anciennes fiches. Il indique que les chiffres viennent de la base.
-4. `src/ai/plant-context.ts` :
-   - `EXPERT_SYSTEM`, les instructions communes de l'expert ;
-   - le type `PlantContext` : espèce, fiche, entrée de la base, pièce (nom, exposition, intérieur ou extérieur), mois, derniers soins et « terreau encore humide » (8 au plus), tâche d'arrosage (intervalle, suite de terreau humide), notes ;
-   - `buildPlantContext(plantId: string): PlantContext | null` ;
-   - `contextText(context: PlantContext): string`, un texte compact.
-5. `src/lib/diagnosis.ts` :
-   - le type `Diagnosis`, avec :
-     - `status` : `healthy`, `watch` ou `treat` ;
-     - `summary` ;
-     - `problems` : 3 au plus, chacun `{ name, kind, confidence, signs, actions: string[] }`, où `kind` vaut `disease`, `pest`, `care` ou `environment` ;
-     - `watering_change` : `less`, `more` ou `none` ;
-     - `light_change` : `more`, `less` ou `none` ;
-   - `DIAGNOSIS_SCHEMA` et `validateDiagnosis(value, { strict? })` ;
-   - `suggestedWateringInterval(intervalDays, change): number | null`, par exemple ×1,3 pour « moins » et ×0,75 pour « plus », borné de 1 à 730.
-6. Fonctions de `src/ai/plant-ai.ts`, vides au départ :
-   - `diagnosePlant(photoUri, plantId, { signal })`, qui renvoie une `Diagnosis` ;
-   - `askPlant(plantId, history: { role: 'user' | 'assistant'; text: string }[], question, { signal, onText })`, qui renvoie le texte de la réponse.
-7. Types du stockage (`src/db/types.ts`) :
-   - `DiagnosisRecord` : `id`, `plant_id`, `photo_id`, `status`, `data`, `created_at` ;
-   - `ChatMessage` : `id`, `plant_id`, `role`, `text`, `created_at` ;
-   - `SpeciesSheetSource` passe à `'ai' | 'reference'`.
-
-**Agent A : « IA experte »**
-
-Ses fichiers :
-- `src/ai/**` : plant-ai, plant-context, fake-engine, et model-runtime pour `onText` ;
-- `src/lib/plant-reference.ts`, `src/lib/diagnosis.ts`, `src/lib/care-sheet.ts`, `src/lib/identification.ts`, `src/lib/validate.ts` et leurs tests ;
-- `src/data/**` ;
-- `docs/ai-engine.md`.
-
-Sa mission :
-
-1. **Base de référence**, dans `src/data/plants.ts` :
-   - Chercher d'abord une source libre de droits : Wikidata (CC0) pour les noms et la classification, la liste ASPCA pour la toxicité (des faits, à reformuler), d'autres sources ouvertes s'il en trouve.
-   - À défaut, constituer la base en recoupant les sources, citées dans `sources`.
-   - Au moins 150 plantes : les plantes d'intérieur courantes, plus les plantes de balcon et d'aromatique les plus fréquentes.
-   - Des tests de cohérence : intervalles de 1 à 730, noms uniques, synonymes sans doublon, températures min < max.
-   - Noter dans `docs/ai-engine.md` d'où viennent les données et sous quelle licence.
-2. **Utiliser la base :**
-   - Après l'identification, relier chaque candidat à la base.
-   - Pour la fiche : si l'espèce est dans la base, les chiffres (lumière, arrosage, humidité, températures, toxicité, engrais, brumisation, rempotage) viennent de la base. Gemma n'écrit que les textes (conseils, substrat, pot, problèmes, bouturage), avec les faits de la base dans le prompt et la consigne de ne pas inventer d'autres chiffres. La réponse est plus courte, donc plus rapide. `reference_id` est rempli.
-   - Si l'espèce n'est pas dans la base, la génération complète actuelle reste en place.
-3. **Expert commun :**
-   - `EXPERT_SYSTEM` : jardinier prudent qui conseille des particuliers en France, phrases courtes, tutoiement.
-   - Il dit quand il ne sait pas. Pour une plante toxique mangée par un animal : conseiller le vétérinaire.
-   - Utilisé par l'identification, la fiche, le diagnostic et les questions.
-   - `buildPlantContext` et `contextText`, qui lisent les données avec `src/db/repo.ts` en lecture seule. Si une fonction de lecture manque, la demander à l'agent B via la session principale.
-4. **`diagnosePlant` :**
-   - la photo et le contexte de la plante vont dans le même appel ;
-   - le prompt insiste sur trop d'eau ou pas assez en s'appuyant sur les derniers arrosages et les « terreau encore humide » ;
-   - validation stricte avec nouvelles tentatives, comme pour la fiche.
-5. **`askPlant` :**
-   - contexte de la plante, puis les 6 derniers messages, raccourcis pour tenir dans le contexte, puis la question ;
-   - réponse en texte libre, courte, envoyée au fil de l'eau avec `onText`.
-6. **Moteur et faux moteur :**
-   - `onText` dans `model-runtime.ts`, avec le texte cumulé et au plus une dizaine de mises à jour par seconde ;
-   - dans `fake-engine.ts` : un diagnostic factice, des réponses de conversation écrites mot à mot, et une fiche d'espèce connue remplie depuis la base.
-7. **Tests :**
-   - recherche dans la base : accents, synonymes, nom commun ;
-   - fiche construite depuis la base ;
-   - validation du diagnostic en mode strict et indulgent ;
-   - `suggestedWateringInterval` ;
-   - `contextText` : longueur et contenu ;
-   - `askPlant` : historique tronqué et `onText`.
-
-**Agent B : « Écrans et données »**
-
-Ses fichiers : `src/db/**`, `src/app/**` et `src/components/**`.
-
-Sa mission :
-
-1. **Migration 3**, ajoutée à la fin de `MIGRATIONS` sans toucher aux précédentes :
-   - table `diagnoses` : `id`, `plant_id` (suppression en cascade), `photo_id` (mis à null si la photo est supprimée), `status`, `data` en JSON, `created_at`, avec un index sur `(plant_id, created_at)` ;
-   - table `chat_messages` : `id`, `plant_id` (suppression en cascade), `role`, `text`, `created_at`, avec un index sur `(plant_id, created_at)` ;
-   - ajouter les deux tables à `live.ts`, avec les fonctions du repo et les hooks ;
-   - supprimer une plante supprime ses diagnostics et sa conversation.
-2. **Diagnostic** :
-   - Sur la page de la plante, un bouton « Diagnostiquer », seulement si le modèle est prêt (`useModelStatus()`).
-   - Il ouvre `src/app/plant/[id]/diagnose.tsx` : appareil photo ou galerie, avec le conseil « de près, à la lumière du jour, montre ce qui t'inquiète ».
-   - Puis l'analyse, avec `AiProgress` et « Annuler ».
-   - Puis le résultat :
-     - un badge d'état ;
-     - le résumé ;
-     - les problèmes avec leur confiance, leurs signes et les actions à faire ;
-     - la mention « Pistes à vérifier, pas un verdict » ;
-     - « Enregistrer », qui garde la photo avec `addPhoto` et le diagnostic.
-   - Si `watering_change` n'est pas `none`, proposer « Passer l'arrosage à N jours » en un clic (`updateTask`).
-   - Sur la page de la plante, une section « Santé » avec la liste des diagnostics (date, état, miniature). Elle ouvre `src/app/diagnosis/[id].tsx`, avec la possibilité de supprimer.
-3. **« Demande à Plantule »**, dans `src/app/plant/[id]/ask.tsx`, ouvert depuis un bouton sur la page de la plante :
-   - la liste des messages et la réponse qui s'écrit au fil de l'eau ;
-   - le bouton d'envoi est désactivé tant qu'une réponse s'écrit ;
-   - des suggestions de questions : « Pourquoi ses feuilles jaunissent ? », « Quand la rempoter ? », « Où la placer ? » ;
-   - la conversation est gardée dans la base, avec « Effacer la conversation » ;
-   - si le modèle n'est pas prêt, afficher `<ModelCard />`.
-4. **Fiche vérifiée** : quand `sheet.data.reference_id` est rempli, afficher « Données vérifiées » sur la fiche (`care-sheet-view.tsx`). La fiche est enregistrée avec la source `reference`.
-5. **Routes** : ajouter les nouvelles routes dans `src/app/_layout.tsx`.
-
-**À la fin de la session**
-
-- Vérifier l'ensemble et cocher les cases de ce lot.
-- Mettre à jour le README (fonctionnalités) et [ai-engine.md](ai-engine.md).
-- Demander avant de pousser sur `main` : le push construit l'APK `preview`.
-- Sur le téléphone, vérifier :
-  - le temps d'un diagnostic ;
-  - la génération au fil de l'eau ;
-  - la justesse sur des plantes vraiment malades ;
-  - qu'une fiche d'espèce connue est plus rapide qu'avant.
+- le temps d’un diagnostic, premier chargement du modèle compris ;
+- que LiteRT-LM accepte les nouveaux schémas JSON (diagnostic, textes de la fiche) ;
+- la génération au fil de l’eau : fluide, et plus rien ne s’affiche après « Arrêter » ;
+- la justesse sur des plantes vraiment malades, surtout trop d’eau ou pas assez ;
+- qu’une fiche d’espèce connue est plus rapide qu’avant, et que Gemma n’y invente pas d’autres chiffres ;
+- que l’identification reste aussi bonne avec les instructions de l’expert commun ;
+- le clavier de « Demande à Plantule » et les confirmations de suppression.
 
 **Ensuite**
 

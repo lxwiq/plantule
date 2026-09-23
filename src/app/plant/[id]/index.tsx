@@ -5,6 +5,8 @@ import { Alert, Pressable, ScrollView, View } from 'react-native';
 
 import { useModelStatus } from '@/ai';
 import { CareSheetSections, SHEET_DISCLAIMER, SHEET_INCOMPLETE } from '@/components/care-sheet-view';
+import { plainAnswer } from '@/components/chat-view';
+import { DiagnosisRow } from '@/components/diagnosis-view';
 import { EventRow } from '@/components/event-row';
 import { TaskRow } from '@/components/task-row';
 import {
@@ -20,6 +22,8 @@ import {
   Text,
 } from '@/components/ui';
 import {
+  useChatMessages,
+  useDiagnoses,
   usePhotos,
   usePlant,
   usePlantEvents,
@@ -65,6 +69,7 @@ function PlantDetails({ plant }: { plant: Plant }) {
   const tasks = useTasks(plant.place_id);
   const events = usePlantEvents(plant.id);
   const photos = usePhotos(plant.id);
+  const diagnoses = useDiagnoses(plant.id);
   const [savingPhoto, setSavingPhoto] = useState(false);
 
   const room = rooms.find((r) => r.id === plant.room_id);
@@ -87,7 +92,9 @@ function PlantDetails({ plant }: { plant: Plant }) {
 
   const managePhoto = (photo: Photo) => {
     const isMain = photo.id === plant.main_photo_id;
-    Alert.alert('Photo', undefined, [
+    const inDiagnosis = diagnoses.some((d) => d.photo_id === photo.id);
+    const message = inDiagnosis ? 'Elle illustre un diagnostic, qui restera sans photo si tu la supprimes.' : undefined;
+    Alert.alert('Photo', message, [
       { text: 'Annuler', style: 'cancel' },
       ...(isMain ? [] : [{ text: 'Photo principale', onPress: () => setMainPhoto(plant.id, photo.id) }]),
       { text: 'Supprimer', style: 'destructive' as const, onPress: () => deletePhoto(photo) },
@@ -95,17 +102,21 @@ function PlantDetails({ plant }: { plant: Plant }) {
   };
 
   const confirmDelete = () =>
-    Alert.alert(`Supprimer ${plant.nickname} ?`, 'Ses soins, son journal et ses photos seront supprimés.', [
-      { text: 'Annuler', style: 'cancel' },
-      {
-        text: 'Supprimer',
-        style: 'destructive',
-        onPress: () => {
-          closeScreen();
-          deletePlant(plant.id);
+    Alert.alert(
+      `Supprimer ${plant.nickname} ?`,
+      'Ses soins, son journal, ses photos, ses diagnostics et sa conversation seront supprimés.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: () => {
+            closeScreen();
+            deletePlant(plant.id);
+          },
         },
-      },
-    ]);
+      ],
+    );
 
   const details = [
     plant.acquired_on && { label: 'Arrivée', value: formatShortDate(plant.acquired_on) },
@@ -185,6 +196,8 @@ function PlantDetails({ plant }: { plant: Plant }) {
           )}
         </View>
 
+        <AskEntry plant={plant} />
+
         <ListSection
           title="Soins"
           action={
@@ -210,6 +223,8 @@ function PlantDetails({ plant }: { plant: Plant }) {
             />
           ))}
         </ListSection>
+
+        <HealthSection plant={plant} />
 
         <View style={{ gap: spacing.sm }}>
           <View
@@ -292,6 +307,79 @@ function PlantDetails({ plant }: { plant: Plant }) {
         </ListSection>
       </Screen>
     </>
+  );
+}
+
+/** Opens the "Demande à Plantule" conversation, with its last message when there is one. */
+function AskEntry({ plant }: { plant: Plant }) {
+  const theme = useTheme();
+  const status = useModelStatus();
+  const messages = useChatMessages(plant.id);
+  const last = messages.at(-1);
+  // Nothing to offer on a phone that cannot run the model, unless there is a conversation to read.
+  if (status.state === 'unsupported' && !last) return null;
+  return (
+    <ListSection>
+      <ListRow
+        leading={
+          <View
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: radius.full,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: theme.primaryContainer,
+            }}>
+            <Icon name={icons.chat} size={22} color={theme.onPrimaryContainer} />
+          </View>
+        }
+        title="Demande à Plantule"
+        subtitle={
+          last
+            ? `${last.role === 'user' ? 'Toi' : 'Plantule'} : ${plainAnswer(last.text).replace(/\s+/g, ' ')}`
+            : `Une question sur ${plant.nickname} ? Arrosage, feuilles, rempotage…`
+        }
+        chevron
+        onPress={() => router.push({ pathname: '/plant/[id]/ask', params: { id: plant.id } })}
+      />
+    </ListSection>
+  );
+}
+
+/** Past diagnoses, and a new one when the model is ready. */
+function HealthSection({ plant }: { plant: Plant }) {
+  const status = useModelStatus();
+  const diagnoses = useDiagnoses(plant.id);
+  const ready = status.state === 'ready';
+  if (!ready && diagnoses.length === 0) return null;
+  return (
+    <ListSection
+      title="Santé"
+      action={
+        ready ? (
+          <Button
+            title="Diagnostiquer"
+            icon={icons.diagnose}
+            variant="text"
+            size="sm"
+            onPress={() => router.push({ pathname: '/plant/[id]/diagnose', params: { id: plant.id } })}
+          />
+        ) : undefined
+      }
+      footer={
+        diagnoses.length === 0
+          ? 'Une feuille qui jaunit, des taches ? Photographie-la de près : le modèle te propose des pistes.'
+          : undefined
+      }>
+      {diagnoses.map((record) => (
+        <DiagnosisRow
+          key={record.id}
+          record={record}
+          onPress={() => router.push({ pathname: '/diagnosis/[id]', params: { id: record.id } })}
+        />
+      ))}
+    </ListSection>
   );
 }
 

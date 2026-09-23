@@ -4,6 +4,7 @@ import {
   confidenceText,
   EMPTY_FINDINGS,
   hasFindings,
+  linkCandidate,
   parseFindings,
   potText,
   serializeFindings,
@@ -65,6 +66,52 @@ describe('identification validation', () => {
     });
     expect(result.ok ? [] : result.errors).toEqual([
       'candidates[0].confidence : nombre entre 0 et 1 attendu (reçu : absent)',
+    ]);
+  });
+});
+
+describe('candidates and the reference base', () => {
+  it('links a candidate and names it after the base', () => {
+    expect(
+      linkCandidate({ scientific_name: 'Sansevieria trifasciata', common_name: 'Sansevière', confidence: 0.8 }),
+    ).toEqual({
+      scientific_name: 'Dracaena trifasciata',
+      // The model's name is kept: it is one of the base's.
+      common_name: 'Sansevière',
+      confidence: 0.8,
+      reference_id: 'dracaena-trifasciata',
+    });
+    expect(
+      linkCandidate({ scientific_name: 'Epipremnum aureum', common_name: 'Golden pothos', confidence: 0.5 }),
+    ).toMatchObject({ scientific_name: 'Epipremnum aureum', common_name: 'Pothos', reference_id: 'epipremnum-aureum' });
+  });
+
+  it('links by the common name only when the genus agrees', () => {
+    expect(
+      linkCandidate({ scientific_name: 'Sansevieria laurentii', common_name: 'Langue de belle-mère', confidence: 0.6 }),
+    ).toMatchObject({ reference_id: 'dracaena-trifasciata' });
+    expect(
+      linkCandidate({ scientific_name: 'Aglaonema pictum', common_name: 'Pothos', confidence: 0.6 }),
+    ).toEqual({ scientific_name: 'Aglaonema pictum', common_name: 'Pothos', confidence: 0.6, reference_id: null });
+  });
+
+  it('keeps a species the base does not know as the model wrote it', () => {
+    const candidate = { scientific_name: 'Ctenanthe burle-marxii', common_name: 'Ctenanthe', confidence: 0.4 };
+    expect(linkCandidate(candidate)).toEqual({ ...candidate, reference_id: null });
+  });
+
+  it('merges candidates that are the same plant of the base', () => {
+    const result = validateIdentification({
+      is_plant: true,
+      candidates: [
+        { scientific_name: 'Dracaena trifasciata', common_name: 'Sansevieria', confidence: 0.7 },
+        { scientific_name: 'Sansevieria trifasciata', common_name: 'Langue de belle-mère', confidence: 0.2 },
+        { scientific_name: 'Dracaena angolensis', common_name: 'Sansevieria cylindrica', confidence: 0.1 },
+      ],
+    });
+    expect(result.ok && result.value.candidates.map((c) => [c.scientific_name, c.reference_id])).toEqual([
+      ['Dracaena trifasciata', 'dracaena-trifasciata'],
+      ['Dracaena angolensis', 'dracaena-angolensis'],
     ]);
   });
 });

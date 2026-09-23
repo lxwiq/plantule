@@ -93,6 +93,9 @@ function App() {
         <Stack.Screen name="plant/new" options={{ title: 'Nouvelle plante', presentation: 'modal' }} />
         <Stack.Screen name="plant/[id]/index" options={{ title: '' }} />
         <Stack.Screen name="plant/[id]/edit" options={{ title: 'Modifier la plante', presentation: 'modal' }} />
+        <Stack.Screen name="plant/[id]/diagnose" options={{ title: 'Diagnostic' }} />
+        <Stack.Screen name="plant/[id]/ask" options={{ title: 'Demande à Plantule' }} />
+        <Stack.Screen name="diagnosis/[id]" options={{ title: 'Diagnostic' }} />
         <Stack.Screen name="task/new" options={{ title: 'Nouvelle tâche', presentation: 'modal' }} />
         <Stack.Screen
           name="task/[id]/index"

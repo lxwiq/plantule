@@ -58,7 +58,7 @@ export function TaskRow({ task, plant, roomName, onPress, onComplete }: TaskRowP
   } else if (overdueDays > 0) {
     status = { text: capitalize(formatDue(task.next_due_on, now)), color: theme.error };
   } else if (overdueDays === 0) {
-    status = { text: "À faire aujourd'hui", color: theme.warning };
+    status = { text: 'À faire aujourd’hui', color: theme.warning };
   } else {
     status = { text: capitalize(formatDue(task.next_due_on, now)), color: theme.textSecondary };
   }
@@ -119,7 +119,7 @@ export function TaskRow({ task, plant, roomName, onPress, onComplete }: TaskRowP
       {onComplete && (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={doneToday ? `${title} : déjà fait aujourd'hui` : `Marquer comme fait : ${taskTitle(task)}, ${title}`}
+          accessibilityLabel={doneToday ? `${title} : déjà fait aujourd’hui` : `Marquer comme fait : ${taskTitle(task)}, ${title}`}
           disabled={doneToday}
           onPress={onComplete}
           hitSlop={4}

@@ -7,6 +7,8 @@ import { randomUUID } from 'expo-crypto';
 
 import { speciesKey, validateCareSheet, type CareSheet } from '@/lib/care-sheet';
 import { parseDate, toDateString, today } from '@/lib/dates';
+import { findReference } from '@/lib/plant-reference';
+import { validateDiagnosis, type Diagnosis } from '@/lib/diagnosis';
 import { firstDueOn, nextDueAfterDone, postpone, suggestedInterval } from '@/lib/schedule';
 
 import { database as db } from './database';
@@ -14,6 +16,9 @@ import { notify } from './live';
 import { deletePhotoFile, storePhotoFile } from './photo-files';
 import type {
   CareEvent,
+  ChatMessage,
+  ChatRole,
+  DiagnosisRecord,
   EventKind,
   Photo,
   Place,
@@ -49,7 +54,7 @@ export function renamePlace(id: string, name: string) {
   notify('places');
 }
 
-/** Deletes a place with its rooms, plants, tasks, journal and photos. */
+/** Deletes a place with its rooms, plants, tasks, journal, photos, diagnoses and conversations. */
 export function deletePlace(id: string) {
   const files = db().getAllSync<{ uri: string }>(
     'select ph.uri from photos ph join plants p on p.id = ph.plant_id where p.place_id = ?',
@@ -57,7 +62,7 @@ export function deletePlace(id: string) {
   );
   db().runSync('delete from places where id = ?', id);
   files.forEach((f) => deletePhotoFile(f.uri));
-  notify('places', 'rooms', 'plants', 'photos', 'tasks', 'events');
+  notify('places', 'rooms', 'plants', 'photos', 'tasks', 'events', 'diagnoses', 'chat_messages');
 }
 
 // Settings
@@ -108,6 +113,11 @@ export function listRooms(placeId: string): Room[] {
       placeId,
     )
     .map(toRoom);
+}
+
+export function getRoom(id: string): Room | null {
+  const row = db().getFirstSync<RoomRow>('select * from rooms where id = ?', id);
+  return row ? toRoom(row) : null;
 }
 
 export function createRoom(placeId: string, input: RoomInput): Room {
@@ -204,12 +214,12 @@ export function updatePlant(id: string, input: PlantInput) {
   notify('plants');
 }
 
-/** Deletes a plant with its tasks, journal and photos. */
+/** Deletes a plant with its tasks, journal, photos, diagnoses and conversation. */
 export function deletePlant(id: string) {
   const files = listPhotos(id);
   db().runSync('delete from plants where id = ?', id);
   files.forEach((f) => deletePhotoFile(f.uri));
-  notify('plants', 'photos', 'tasks', 'events');
+  notify('plants', 'photos', 'tasks', 'events', 'diagnoses', 'chat_messages');
 }
 
 /** Links a plant to a species sheet, or unlinks it with null. */
@@ -239,22 +249,28 @@ export function getSpeciesSheet(id: string): SpeciesSheet | null {
 
 /**
  * The stored sheet for a species name, whatever the case: by scientific name
- * first, then by common name (what people type). Reused instead of asking the
- * model again.
+ * first, then by common name (what people type), then under the name the
+ * reference base gives it ("Sansevieria trifasciata" finds the sheet stored
+ * as "Dracaena trifasciata"). Reused instead of asking the model again.
  */
 export function findSpeciesSheet(name: string): SpeciesSheet | null {
   const key = speciesKey(name);
   if (!key) return null;
-  return toSpeciesSheet(
-    db().getFirstSync<SpeciesSheetRow>(
-      `select * from species_sheets
-       where scientific_name = ? collate nocase or common_name = ? collate nocase
-       order by scientific_name = ? collate nocase desc, updated_at desc
-       limit 1`,
-      key,
-      key,
-      key,
-    ),
+  const found = findSheetRow(key);
+  if (found) return toSpeciesSheet(found);
+  const reference = findReference(key);
+  return reference ? toSpeciesSheet(findSheetRow(reference.scientific_name)) : null;
+}
+
+function findSheetRow(key: string): SpeciesSheetRow | null {
+  return db().getFirstSync<SpeciesSheetRow>(
+    `select * from species_sheets
+     where scientific_name = ? collate nocase or common_name = ? collate nocase
+     order by scientific_name = ? collate nocase desc, updated_at desc
+     limit 1`,
+    key,
+    key,
+    key,
   );
 }
 
@@ -308,8 +324,15 @@ export function listPhotos(plantId: string): Photo[] {
   );
 }
 
-/** Keeps a copy of the picked photo. The first photo becomes the main one. */
-export async function addPhoto(plantId: string, sourceUri: string): Promise<Photo> {
+/**
+ * Keeps a copy of the picked photo. The first photo becomes the main one,
+ * unless `asMain` is false (a close-up of a sick leaf is a poor portrait).
+ */
+export async function addPhoto(
+  plantId: string,
+  sourceUri: string,
+  { asMain = true }: { asMain?: boolean } = {},
+): Promise<Photo> {
   const id = randomUUID();
   const uri = await storePhotoFile(sourceUri, id);
   const photo: Photo = { id, plant_id: plantId, uri, created_at: now() };
@@ -321,10 +344,16 @@ export async function addPhoto(plantId: string, sourceUri: string): Promise<Phot
       uri,
       photo.created_at,
     );
-    db().runSync('update plants set main_photo_id = ? where id = ? and main_photo_id is null', id, plantId);
+    if (asMain) {
+      db().runSync('update plants set main_photo_id = ? where id = ? and main_photo_id is null', id, plantId);
+    }
   });
   notify('photos', 'plants');
   return photo;
+}
+
+export function getPhoto(id: string): Photo | null {
+  return db().getFirstSync<Photo>('select * from photos where id = ?', id);
 }
 
 export function setMainPhoto(plantId: string, photoId: string | null) {
@@ -332,7 +361,10 @@ export function setMainPhoto(plantId: string, photoId: string | null) {
   notify('plants');
 }
 
-/** Deletes a photo; if it was the main one, the most recent one left takes over. */
+/**
+ * Deletes a photo; if it was the main one, the most recent one left takes
+ * over. Diagnoses made from it stay, without a photo.
+ */
 export function deletePhoto(photo: Photo) {
   db().withTransactionSync(() => {
     db().runSync('delete from photos where id = ?', photo.id);
@@ -346,7 +378,7 @@ export function deletePhoto(photo: Photo) {
     );
   });
   deletePhotoFile(photo.uri);
-  notify('photos', 'plants');
+  notify('photos', 'plants', 'diagnoses');
 }
 
 // Tasks
@@ -365,6 +397,13 @@ export function listTasks(placeId: string): Task[] {
        where p.place_id = ? order by t.next_due_on, t.created_at`,
       placeId,
     )
+    .map(toTask);
+}
+
+/** Tasks of one plant, soonest first. */
+export function listPlantTasks(plantId: string): Task[] {
+  return db()
+    .getAllSync<TaskRow>('select * from tasks where plant_id = ? order by next_due_on, created_at', plantId)
     .map(toTask);
 }
 
@@ -517,4 +556,114 @@ export function listPlantEvents(plantId: string, limit = 50): CareEvent[] {
     plantId,
     limit,
   );
+}
+
+// Diagnoses
+
+type DiagnosisRow = Omit<DiagnosisRecord, 'data'> & { data: string };
+
+const DIAGNOSIS_SELECT = `
+  select d.*, ph.uri as photo_uri
+  from diagnoses d left join photos ph on ph.id = d.photo_id`;
+
+/** Null when the stored JSON no longer passes validation (e.g. written by an older version). */
+function toDiagnosis(row: DiagnosisRow | null): DiagnosisRecord | null {
+  if (!row) return null;
+  try {
+    const result = validateDiagnosis(JSON.parse(row.data));
+    return result.ok ? { ...row, data: result.value } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Diagnoses of a plant, newest first. */
+export function listDiagnoses(plantId: string): DiagnosisRecord[] {
+  return db()
+    .getAllSync<DiagnosisRow>(
+      `${DIAGNOSIS_SELECT} where d.plant_id = ? order by d.created_at desc`,
+      plantId,
+    )
+    .map(toDiagnosis)
+    .filter((d): d is DiagnosisRecord => d !== null);
+}
+
+export function getDiagnosis(id: string): DiagnosisRecord | null {
+  return toDiagnosis(db().getFirstSync<DiagnosisRow>(`${DIAGNOSIS_SELECT} where d.id = ?`, id));
+}
+
+/**
+ * Keeps a diagnosis with the photo it was made from. The photo joins the
+ * plant's photos without becoming its main one.
+ */
+export async function saveDiagnosis(
+  plantId: string,
+  photoUri: string | null,
+  diagnosis: Diagnosis,
+): Promise<DiagnosisRecord> {
+  const photo = photoUri ? await addPhoto(plantId, photoUri, { asMain: false }) : null;
+  const record: DiagnosisRecord = {
+    id: randomUUID(),
+    plant_id: plantId,
+    photo_id: photo?.id ?? null,
+    photo_uri: photo?.uri ?? null,
+    status: diagnosis.status,
+    data: diagnosis,
+    created_at: now(),
+  };
+  db().runSync(
+    'insert into diagnoses (id, plant_id, photo_id, status, data, created_at) values (?, ?, ?, ?, ?, ?)',
+    record.id,
+    plantId,
+    record.photo_id,
+    record.status,
+    JSON.stringify(diagnosis),
+    record.created_at,
+  );
+  notify('diagnoses');
+  return record;
+}
+
+/**
+ * Deletes a diagnosis with the photo taken for it, unless that photo became
+ * the plant's main one.
+ */
+export function deleteDiagnosis(id: string) {
+  const row = db().getFirstSync<{ photo_id: string | null; main_photo_id: string | null }>(
+    `select d.photo_id, p.main_photo_id from diagnoses d join plants p on p.id = d.plant_id where d.id = ?`,
+    id,
+  );
+  db().runSync('delete from diagnoses where id = ?', id);
+  notify('diagnoses');
+  const photo = row?.photo_id && row.photo_id !== row.main_photo_id ? getPhoto(row.photo_id) : null;
+  if (photo) deletePhoto(photo);
+}
+
+// "Demande à Plantule" conversations
+
+/** Messages of a plant's conversation, oldest first. */
+export function listChatMessages(plantId: string): ChatMessage[] {
+  return db().getAllSync<ChatMessage>(
+    'select * from chat_messages where plant_id = ? order by created_at, rowid',
+    plantId,
+  );
+}
+
+export function addChatMessage(plantId: string, role: ChatRole, text: string): ChatMessage {
+  const message: ChatMessage = { id: randomUUID(), plant_id: plantId, role, text: text.trim(), created_at: now() };
+  db().runSync(
+    'insert into chat_messages (id, plant_id, role, text, created_at) values (?, ?, ?, ?, ?)',
+    message.id,
+    plantId,
+    role,
+    message.text,
+    message.created_at,
+  );
+  notify('chat_messages');
+  return message;
+}
+
+export function clearChatMessages(plantId: string) {
+  db().runSync('delete from chat_messages where plant_id = ?', plantId);
+  notify('chat_messages');
 }

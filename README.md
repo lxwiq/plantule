@@ -14,13 +14,16 @@ Tout reste sur le téléphone : pas de compte, pas de serveur. Les données sont
 - **Journal** : tout ce qui a été fait ou reporté, par plante.
 - **Résumé quotidien** : une notification locale par jour, à l'heure choisie.
 - **Scan** : on photographie une plante, Gemma 4 E2B propose l'espèce, puis rédige sa fiche d'entretien et les soins à programmer. Le modèle tourne sur le téléphone : il se télécharge une fois (2,6 Go, en Wi-Fi) et aucune photo ne sort du téléphone. Il faut un téléphone Android avec 6 Go de RAM. Voir [docs/ai-engine.md](docs/ai-engine.md).
+- **Base de référence** : 170 plantes courantes (intérieur, balcon, aromatiques) embarquées dans l’app : noms vérifiés sur Wikidata, toxicité d’après l’ASPCA, et des chiffres d’entretien fixés à l’avance. Pour une espèce connue, la fiche prend ses chiffres dans la base et Gemma n’écrit que les conseils : elle est plus rapide et plus juste. La fiche l’indique par « Données vérifiées ».
+- **Diagnostic** : une photo de près de ce qui inquiète, et Gemma donne l’état de la plante (saine, à surveiller, à soigner), jusqu’à 3 pistes avec quoi faire, en tenant compte des derniers arrosages, de la pièce et de la saison. Si l’arrosage est en cause, l’app propose de changer l’intervalle en un clic. Les diagnostics sont gardés avec leur photo dans la section Santé de la plante.
+- **Demande à Plantule** : poser ses questions sur une plante, avec la réponse qui s’écrit au fil de l’eau. La conversation est gardée pour chaque plante.
 
 ## Développer
 
 ```bash
 npm install
 npx expo start      # puis « a » pour Android (Expo Go ou émulateur)
-npm test            # tests unitaires (règles de récurrence, dates, résumé)
+npm test            # tests unitaires (règles, dates, fiche, diagnostic, base de référence)
 npx tsc --noEmit    # typecheck
 npx expo lint       # lint
 ```
@@ -31,10 +34,11 @@ Structure :
 
 ```
 src/app/            écrans (Expo Router)
-src/ai/             modèle sur le téléphone (téléchargement, exécution) et questions du scan
+src/ai/             modèle sur le téléphone (téléchargement, exécution) et questions posées à l’expert (scan, fiche, diagnostic, conversation)
 src/components/     composants, dont le design system dans components/ui
+src/data/           base de référence des plantes (chiffres d’entretien, toxicité)
 src/db/             base SQLite : schéma et migrations, requêtes, hooks réactifs
-src/lib/            règles de récurrence, dates, libellés, fiche espèce et sa validation
+src/lib/            règles de récurrence, dates, libellés, fiche espèce, diagnostic et leur validation
 src/notifications/  résumé quotidien
 src/theme/          couleurs, typographie, espacements (clair et sombre)
 ```
