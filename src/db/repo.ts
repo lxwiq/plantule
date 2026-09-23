@@ -5,6 +5,8 @@
 
 import { randomUUID } from 'expo-crypto';
 
+import { DEFAULT_MASCOT_NAME } from '@/art/pepin';
+import { DEFAULT_OUTFIT } from '@/art/types';
 import { speciesKey, validateCareSheet, type CareSheet } from '@/lib/care-sheet';
 import { addDays, parseDate, toDateString, today } from '@/lib/dates';
 import { findReference } from '@/lib/plant-reference';
@@ -122,6 +124,8 @@ const DEFAULT_SETTINGS: Settings = {
   last_backup_at: null,
   agenda_enabled: false,
   agenda_calendar_id: null,
+  mascot_name: DEFAULT_MASCOT_NAME,
+  mascot_outfit: DEFAULT_OUTFIT,
 };
 
 export function getSettings(): Settings {

@@ -1,5 +1,6 @@
 /** Data stored on the phone. Dates are "YYYY-MM-DD", instants are ISO strings. */
 
+import type { Outfit } from '@/art/types';
 import type { CareSheet } from '@/lib/care-sheet';
 import type { Diagnosis, DiagnosisStatus } from '@/lib/diagnosis';
 import type { RainHour } from '@/lib/weather';
@@ -219,6 +220,10 @@ export type Settings = {
   agenda_enabled: boolean;
   /** That agenda's id in the phone's calendar, once created. */
   agenda_calendar_id: string | null;
+  /** The mascot's name, Pépin unless the user renamed it. */
+  mascot_name: string;
+  /** What the mascot wears; read it through `normalizeOutfit()`. */
+  mascot_outfit: Outfit;
 };
 
 export type RoomInput = { name: string; light: Light | null; is_outdoor: boolean };
