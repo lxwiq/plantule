@@ -1,65 +1,136 @@
-<p align="center"><img src="docs/plantule.png" width="128" alt="Plantule"></p>
+<p align="center">
+  <img src="docs/plantule.png" width="160" alt="Plantule's mascot: a smiling terracotta pot with a sprout">
+</p>
 
-# Plantule
+<h1 align="center">Plantule</h1>
 
-App Android pour s'occuper de ses plantes : ce qu'il faut faire aujourd'hui, un rappel chaque matin, et l'historique de chaque plante.
+<p align="center">
+  <b>A private, offline plant care app for Android, with an AI plant expert that runs on your phone.</b><br>
+  No account, no server, no ads: your plants, your phone.
+</p>
 
-Tout reste sur le téléphone : pas de compte, pas de serveur. Les données sont dans une base SQLite locale, et les photos dans le dossier de l'app.
+<p align="center">
+  <a href="https://github.com/lxwiq/plantule/releases/download/preview/plantule-preview.apk"><img alt="Download the APK" src="https://img.shields.io/badge/Download-APK-2E6B3E?style=for-the-badge&logo=android&logoColor=white"></a>
+</p>
 
-## Fonctionnalités
+<p align="center">
+  <a href="https://github.com/lxwiq/plantule/actions/workflows/android.yml"><img alt="Android build" src="https://github.com/lxwiq/plantule/actions/workflows/android.yml/badge.svg"></a>
+  <img alt="Platform: Android" src="https://img.shields.io/badge/platform-Android-3DDC84?logo=android&logoColor=white">
+  <img alt="Expo SDK 57" src="https://img.shields.io/badge/Expo-SDK%2057-000020?logo=expo&logoColor=white">
+  <img alt="On-device AI: Gemma 4" src="https://img.shields.io/badge/AI-Gemma%204%20on--device-4285F4">
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-blue"></a>
+</p>
 
-- **Lieux et pièces** : plusieurs lieux (appartement, maison de campagne…), chacun avec ses pièces et zones (exposition, intérieur ou extérieur).
-- **Plantes** : surnom, espèce, pièce, date d'arrivée, pot, substrat, notes et photos (appareil photo ou galerie).
-- **Soins** : arrosage, engrais, brumisation, rempotage… avec un intervalle en jours et un ajustement d'hiver.
-- **Aujourd'hui** : les soins en retard, ceux du jour, ceux déjà faits et la semaine à venir. On coche « fait », on reporte, ou on signale « terreau encore humide ».
-- **Récurrence glissante** : la prochaine échéance part du jour où le soin a été fait. En hiver (novembre à février), l'intervalle est multiplié par le coefficient du soin. Après deux « terreau encore humide » de suite, l'app propose d'allonger l'intervalle.
-- **Journal** : tout ce qui a été fait ou reporté, par plante.
-- **Résumé quotidien** : une notification locale par jour, à l'heure choisie.
-- **Scan** : on photographie une plante, Gemma 4 E2B propose l'espèce, puis rédige sa fiche d'entretien et les soins à programmer. Le modèle tourne sur le téléphone : il se télécharge une fois (2,6 Go, en Wi-Fi) et aucune photo ne sort du téléphone. Il faut un téléphone Android avec 6 Go de RAM. Voir [docs/ai-engine.md](docs/ai-engine.md).
-- **Base de référence** : 170 plantes courantes (intérieur, balcon, aromatiques) embarquées dans l’app : noms vérifiés sur Wikidata, toxicité d’après l’ASPCA, et des chiffres d’entretien fixés à l’avance. Pour une espèce connue, la fiche prend ses chiffres dans la base et Gemma n’écrit que les conseils : elle est plus rapide et plus juste. La fiche l’indique par « Données vérifiées ».
-- **Diagnostic** : une photo de près de ce qui inquiète, et Gemma donne l’état de la plante (saine, à surveiller, à soigner), jusqu’à 3 pistes avec quoi faire, en tenant compte des derniers arrosages, de la pièce et de la saison. Si l’arrosage est en cause, l’app propose de changer l’intervalle en un clic. Les diagnostics sont gardés avec leur photo dans la section Santé de la plante.
-- **Demande à Plantule** : poser ses questions sur une plante, avec la réponse qui s’écrit au fil de l’eau. La conversation est gardée pour chaque plante.
+*Plantule* is French for **seedling**. Open the app, see what your plants need today, tick it off, and it's rescheduled. That loop is the heart of the app; everything else helps you get it right.
 
-## Développer
+> The app's interface is in French.
+
+## Features
+
+### Daily care
+- **Today screen**: what's overdue, what's due today, what's done, and what's coming up this week.
+- **Quick actions**: mark as done, snooze, or tell the app the soil is still wet (watering moves 2 days later; after twice in a row, Plantule suggests a longer interval).
+- **Sliding schedules**: the next date counts from the day you actually did it, not from a fixed calendar. From November to February, intervals stretch automatically for winter.
+- **Daily summary notification** at the time you choose ("3 plants to water").
+- **Month calendar** with the planned care for each day, and the journal for past days.
+- **Journal**: every watering, feeding and repotting, plant by plant.
+
+### Plants and places
+- **Several places** (flat, country house…), each with its rooms and zones: light exposure, indoor or outdoor.
+- **Plants** with nickname, species, room, arrival date, pot, substrate, notes and photos.
+- **Growth gallery**: dated photos sorted by month, first vs. latest photo side by side ("8 months later"), full-screen viewer.
+- **Cuttings**: follow each cutting from start to roots to potting, then turn it into a plant in one tap.
+- **Wishlist**: the species you'd like to have, with light, watering and pet-safety info to help you decide.
+
+### An AI plant expert on your phone
+Plantule runs **Gemma 4 E2B** locally with Google's LiteRT-LM. The model is downloaded once (2.6 GB, over Wi-Fi) and **no photo ever leaves the phone**.
+- **Scan**: take a photo and get the species, a confidence level and alternatives, then a complete care sheet and a ready-made care schedule.
+- **Reads the photo**: pot material and size, whether it needs repotting (and why), and visible issues like yellow leaves or spots.
+- **Health diagnosis**: a close-up of what worries you gives the plant's state (healthy, keep an eye on it, needs care), up to 3 likely causes and what to do now. It takes your recent waterings, the room and the season into account, and if watering is the cause, it offers to change the interval in one tap.
+- **Ask Plantule**: chat about any of your plants; the answer streams in and the conversation is kept per plant.
+- **Placement help**: the light the plant likes and which of your rooms offer it.
+- **Reference base of 170 common plants**: names checked against Wikidata and pet toxicity from the ASPCA lists, so the AI doesn't make up the numbers.
+
+### Around the app
+- **Rain-aware watering**: give a place a town, and outdoor plants count as watered after a rainy day (5 mm or more), with weather from Open-Meteo.
+- **Home-screen widget** with today's care.
+- **Phone calendar**: add your plant care to your phone's calendar, kept in sync automatically.
+- **Backup**: export everything (plants, photos, care, journal) to a single file and import it on a new phone.
+- **In-app updates** straight from GitHub Releases.
+- **Light and dark themes.**
+
+## Privacy
+
+Everything lives on your phone, in a local SQLite database, with photos in the app's own folder. There is no account and no server. The app only goes online to:
+
+- download the AI model, once;
+- fetch the weather for a place you gave a town to (only rounded coordinates are sent, to Open-Meteo);
+- check GitHub for a new version of the app.
+
+## Install
+
+1. Download the [latest APK](https://github.com/lxwiq/plantule/releases/download/preview/plantule-preview.apk) on your Android phone and open it (Android will ask you to allow installs from your browser).
+2. Later versions show up in the app itself: tap "Mettre à jour" (update) and confirm.
+
+The AI features need a phone with at least 6 GB of RAM and 2.6 GB of free space. Everything else works on any recent Android phone, with or without the model.
+
+## Tech
+
+- [Expo](https://expo.dev) SDK 57, React Native 0.86, Expo Router, React Compiler
+- `expo-sqlite` with migrations and reactive queries
+- [`react-native-litert-lm`](https://github.com/hung-yueh/react-native-litert-lm) (Google's [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM)) running Gemma 4 E2B on the device
+- [`react-native-android-widget`](https://github.com/sAleksovski/react-native-android-widget), `expo-calendar`, `expo-notifications`
+- [Open-Meteo](https://open-meteo.com) for the weather
+- APKs built and signed by GitHub Actions (no EAS)
+
+## Development
 
 ```bash
 npm install
-npx expo start      # puis « a » pour Android (Expo Go ou émulateur)
-npm test            # tests unitaires (règles, dates, fiche, diagnostic, base de référence)
+npx expo start      # then press "a" for Android
+npm test            # unit tests (scheduling, dates, care sheets, diagnosis, backup, weather…)
 npx tsc --noEmit    # typecheck
 npx expo lint       # lint
 ```
 
-Le scan a besoin du module natif de l'APK : il ne marche ni dans Expo Go ni dans le navigateur. Pour essayer ses écrans quand même, lance `EXPO_PUBLIC_FAKE_AI=1 npx expo start` : un faux modèle répond à la place de Gemma.
-
-Structure :
+The AI and the widget need the native modules of the APK: they don't work in Expo Go or in a browser. To try the AI screens anyway, run `EXPO_PUBLIC_FAKE_AI=1 npx expo start` and a fake model answers instead of Gemma.
 
 ```
-src/app/            écrans (Expo Router)
-src/ai/             modèle sur le téléphone (téléchargement, exécution) et questions posées à l’expert (scan, fiche, diagnostic, conversation)
-src/components/     composants, dont le design system dans components/ui
-src/data/           base de référence des plantes (chiffres d’entretien, toxicité)
-src/db/             base SQLite : schéma et migrations, requêtes, hooks réactifs
-src/lib/            règles de récurrence, dates, libellés, fiche espèce, diagnostic et leur validation
-src/notifications/  résumé quotidien
-src/theme/          couleurs, typographie, espacements (clair et sombre)
+src/app/            screens (Expo Router)
+src/ai/             on-device model (download, runtime) and the expert's prompts (scan, sheet, diagnosis, chat)
+src/components/     components, with the design system in components/ui
+src/data/           plant reference base (care numbers, toxicity)
+src/db/             SQLite: schema and migrations, queries, reactive hooks, backup
+src/lib/            pure logic and its tests: scheduling, dates, care sheets, diagnosis, weather, updates…
+src/notifications/  daily summary
+src/widget/         home-screen widget
+src/agenda/         phone calendar sync
+src/weather/        Open-Meteo client
+src/updates/        in-app updates
+src/theme/          colors, typography, spacing (light and dark)
 ```
 
-Le schéma de la base est dans `src/db/database.ts`. Pour le faire évoluer, ajoute une migration à la fin de `MIGRATIONS` et ne modifie jamais une migration déjà publiée.
+The database schema lives in `src/db/database.ts`. To change it, append a migration at the end of `MIGRATIONS`; never edit one that has shipped.
 
-### Dans un navigateur
+### In a browser
 
-Le web ne sert qu'au développement. `expo-sqlite` y a besoin des en-têtes `Cross-Origin-Embedder-Policy: credentialless` et `Cross-Origin-Opener-Policy: same-origin` sur la page. Le serveur de dev d'Expo ne les ajoute pas à la page HTML : il faut passer par un petit proxy local qui les ajoute. De plus, `expo-sqlite` 57.0.3 a un bug sur le web avec les requêtes synchrones dont le résultat dépasse 255 octets. Android n'est pas concerné.
+The web build is for development only. `expo-sqlite` needs the `Cross-Origin-Embedder-Policy: credentialless` and `Cross-Origin-Opener-Policy: same-origin` headers on the page, which Expo's dev server doesn't add to the HTML page, so you need a small local proxy that adds them. Also, `expo-sqlite` 57.0.3 truncates synchronous query results larger than 255 bytes on the web. Android isn't affected.
 
-## Livrer
+### Releases
 
-Les APK sont construits par GitHub Actions, pas par EAS (voir `.github/workflows/android.yml`) :
+APKs are built by GitHub Actions, not EAS (see `.github/workflows/android.yml`). Typecheck, lint and tests run first.
 
-- chaque push sur `main` publie un APK de test dans la release `preview` ;
-- un tag `vX.Y.Z` (égal à `expo.version` dans `app.json`) publie un APK et un AAB versionnés.
+- Every push to `main` publishes a test APK to the [`preview` release](https://github.com/lxwiq/plantule/releases/tag/preview).
+- A `vX.Y.Z` tag (matching `expo.version` in `app.json`) publishes a versioned APK and an AAB.
 
-Le build vérifie d'abord le typecheck, le lint et les tests.
+Each APK comes with an `update.json` file that the app reads to update itself.
 
-## Serveur (mis de côté)
+## Roadmap
 
-Une première version synchronisait les données entre les membres d'une maison via une API Rust (Axum, Postgres). Elle est conservée sur la branche `backend-rust`.
+See [docs/ROADMAP.md](docs/ROADMAP.md) (in French). Next up: an iOS version.
+
+An earlier version synced data between the members of a household through a Rust API (Axum, Postgres). It's kept on the `backend-rust` branch.
+
+## License
+
+[MIT](LICENSE)
