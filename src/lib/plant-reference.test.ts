@@ -3,7 +3,14 @@ import { describe, expect, it } from '@jest/globals';
 import { REFERENCE_PLANTS } from '@/data/plants';
 
 import { LIGHT_ORDER } from './labels';
-import { findReference, getReference, referenceFacts, referenceKey, sameGenus } from './plant-reference';
+import {
+  findReference,
+  getReference,
+  referenceFacts,
+  referenceKey,
+  sameGenus,
+  searchReferences,
+} from './plant-reference';
 
 const idOf = (name: string) => findReference(name)?.id ?? null;
 
@@ -142,6 +149,38 @@ describe('finding a plant', () => {
     expect(sameGenus(snakePlant, 'Sansevieria laurentii')).toBe(true);
     expect(sameGenus(snakePlant, 'Dracaena marginata')).toBe(true);
     expect(sameGenus(snakePlant, 'Monstera deliciosa')).toBe(false);
+  });
+});
+
+describe('suggestions while typing', () => {
+  const found = (query: string) => searchReferences(query).map((match) => [match.plant.id, match.name]);
+
+  it('puts the exact name first, then the names starting with it', () => {
+    expect(found('monstera')).toEqual([
+      ['monstera-deliciosa', 'Monstera'],
+      ['monstera-adansonii', 'Monstera adansonii'],
+      ['rhaphidophora-tetrasperma', 'Monstera minima'],
+    ]);
+  });
+
+  it('matches any word of a name, without accents or case', () => {
+    expect(found('GRUY')).toEqual([['monstera-deliciosa', 'Plante gruyère']]);
+    expect(found('plante gru')).toEqual([['monstera-deliciosa', 'Plante gruyère']]);
+    expect(found('orchidee')[0]).toEqual(['phalaenopsis-amabilis', 'Orchidée']);
+  });
+
+  it('gives each plant once, with its best name', () => {
+    const ids = searchReferences('ficus', 20).map((match) => match.plant.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(found('ficus')[0]).toEqual(['ficus-benjamina', 'Ficus']);
+  });
+
+  it('waits for 2 letters, and keeps to the limit', () => {
+    expect(searchReferences('m')).toEqual([]);
+    expect(searchReferences('  ')).toEqual([]);
+    expect(searchReferences('ficus')).toHaveLength(5);
+    expect(searchReferences('ficus', 2)).toHaveLength(2);
+    expect(searchReferences('zzz')).toEqual([]);
   });
 });
 

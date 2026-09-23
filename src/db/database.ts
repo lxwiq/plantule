@@ -151,6 +151,38 @@ const MIGRATIONS: string[] = [
     watered_plants integer
   );
   `,
+  // 6: cuttings, kept with their place and linked to the plant they come from
+  // and to the one they became; and the wishlist, shared by every place. The
+  // photo of a cutting is a file in the photos folder, named after photo_id.
+  // No check on the method: its list may grow.
+  `
+  create table cuttings (
+    id text primary key,
+    place_id text not null references places (id) on delete cascade,
+    parent_plant_id text references plants (id) on delete set null,
+    plant_id text references plants (id) on delete set null,
+    species text,
+    started_on text not null,
+    method text not null,
+    status text not null default 'rooting' check (status in ('rooting', 'rooted', 'potted', 'failed')),
+    notes text,
+    photo_id text,
+    photo_uri text,
+    photo_taken_at text,
+    created_at text not null,
+    updated_at text not null
+  );
+  create index cuttings_place_idx on cuttings (place_id, started_on);
+  create index cuttings_parent_idx on cuttings (parent_plant_id);
+  create index cuttings_plant_idx on cuttings (plant_id);
+
+  create table wishes (
+    id text primary key,
+    species text not null,
+    note text,
+    created_at text not null
+  );
+  `,
 ];
 
 export const DATABASE_NAME = 'plantule.db';

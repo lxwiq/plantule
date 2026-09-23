@@ -18,8 +18,8 @@ import {
   extractPhotos,
   insertColumns,
   insertSql,
-  isSafePhotoId,
   openArchive,
+  photoFilesOf,
   prepareImport,
   type Backup,
   type BackupRow,
@@ -101,9 +101,8 @@ async function writeArchive(file: File, backup: Backup) {
   try {
     const archive = createArchive((chunk) => handle.writeBytes(chunk));
     archive.addManifest(backup);
-    for (const { id, uri } of backup.tables.photos) {
-      if (!isSafePhotoId(id) || typeof uri !== 'string') continue;
-      // A photo whose file is gone is left out; the import drops its row.
+    for (const { id, uri } of photoFilesOf(backup.tables)) {
+      // A photo whose file is gone is left out; the import drops it.
       const bytes = await readPhoto(uri);
       if (bytes) archive.addPhoto(id, bytes);
     }
@@ -178,7 +177,7 @@ function readInChunks(file: File): Uint8Array {
  */
 export async function restoreBackup({ backup, archive, photoFiles }: PickedBackup): Promise<void> {
   const tables = prepareImport(backup, photoFiles, (id) => photoFile(id).uri);
-  const photoIds = tables.photos.map((photo) => String(photo.id));
+  const photoIds = photoFilesOf(tables).map((photo) => photo.id);
   const staging = stagingDirectory();
   deleteQuietly(staging);
   staging.create({ intermediates: true });

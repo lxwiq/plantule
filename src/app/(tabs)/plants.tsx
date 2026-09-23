@@ -1,8 +1,10 @@
-import { router } from 'expo-router';
-import { useMemo } from 'react';
+import { router, type Href } from 'expo-router';
+import { useMemo, useState } from 'react';
 
+import { CuttingList } from '@/components/cutting-list';
 import { PlantThumb } from '@/components/plant-thumb';
 import {
+  ChoiceChips,
   EmptyState,
   IconButton,
   icons,
@@ -11,10 +13,27 @@ import {
   Screen,
   ScreenTitle,
 } from '@/components/ui';
-import { useCurrentPlace, usePlants, useRooms, useTasks } from '@/db/hooks';
+import { WishList } from '@/components/wish-list';
+import { useCurrentPlace, useCuttings, usePlants, useRooms, useTasks, useWishes } from '@/db/hooks';
 import type { Plant, Room, Task } from '@/db/types';
+import { isGrowing } from '@/lib/cuttings';
 import { formatDue } from '@/lib/dates';
 import { plural, TASK_KINDS } from '@/lib/labels';
+
+/** The tab shows the plants of the place, its cuttings, or the wishlist. */
+type Collection = 'plants' | 'cuttings' | 'wishes';
+
+const VIEWS: { value: Collection; label: string }[] = [
+  { value: 'plants', label: 'Plantes' },
+  { value: 'cuttings', label: 'Boutures' },
+  { value: 'wishes', label: 'Envies' },
+];
+
+const ADD: Record<Collection, { label: string; href: Href }> = {
+  plants: { label: 'Ajouter une plante', href: '/plant/new' },
+  cuttings: { label: 'Nouvelle bouture', href: '/cutting/new' },
+  wishes: { label: 'Nouvelle envie', href: '/wish/new' },
+};
 
 type Group = { key: string; title: string; plants: Plant[] };
 
@@ -44,23 +63,37 @@ export default function Plants() {
   const plants = usePlants(place.id);
   const rooms = useRooms(place.id);
   const tasks = useTasks(place.id);
+  const cuttings = useCuttings(place.id);
+  const wishes = useWishes();
   const groups = useMemo(() => groupByRoom(plants, rooms), [plants, rooms]);
+  const [view, setView] = useState<Collection>('plants');
+
+  const subtitle = {
+    plants: `${plural(plants.length, 'plante')} · ${place.name}`,
+    cuttings: `${plural(cuttings.filter(isGrowing).length, 'bouture')} en cours · ${place.name}`,
+    wishes: plural(wishes.length, 'envie'),
+  }[view];
 
   return (
     <Screen topInset>
       <ScreenTitle
         title="Plantes"
-        subtitle={`${plural(plants.length, 'plante')} · ${place.name}`}
+        subtitle={subtitle}
         actions={
           <IconButton
             icon={icons.add}
-            label="Ajouter une plante"
+            label={ADD[view].label}
             variant="filled"
-            onPress={() => router.push('/plant/new')}
+            onPress={() => router.push(ADD[view].href)}
           />
         }
       />
-      {plants.length === 0 ? (
+      <ChoiceChips options={VIEWS} value={view} onChange={setView} />
+      {view === 'cuttings' ? (
+        <CuttingList cuttings={cuttings} plants={plants} />
+      ) : view === 'wishes' ? (
+        <WishList wishes={wishes} />
+      ) : plants.length === 0 ? (
         <EmptyState
           title="Aucune plante"
           message="Ajoute ta première plante : un surnom suffit, le reste peut attendre."

@@ -162,6 +162,52 @@ export type ChatMessage = {
   created_at: string;
 };
 
+export type CuttingMethod = 'water' | 'soil' | 'sphagnum' | 'perlite' | 'other';
+
+/** Rooting, then rooted, then potted; or failed. */
+export type CuttingStatus = 'rooting' | 'rooted' | 'potted' | 'failed';
+
+/** A cutting, kept with the place it grows in. */
+export type Cutting = {
+  id: string;
+  place_id: string;
+  /** The plant of the collection it was taken from; null when unknown or deleted. */
+  parent_plant_id: string | null;
+  /** The plant it became (« En faire une plante »). */
+  plant_id: string | null;
+  /** Free text, like a plant's. */
+  species: string | null;
+  started_on: string;
+  method: CuttingMethod;
+  status: CuttingStatus;
+  notes: string | null;
+  /** The file of its photo: `photo_id` names it in the photos folder and in backups. */
+  photo_id: string | null;
+  photo_uri: string | null;
+  photo_taken_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CuttingInput = {
+  parent_plant_id: string | null;
+  species: string | null;
+  started_on: string;
+  method: CuttingMethod;
+  notes: string | null;
+};
+
+/** A species I would like to have, whatever the place. */
+export type Wish = {
+  id: string;
+  /** Free text, often a name from the reference base. */
+  species: string;
+  note: string | null;
+  created_at: string;
+};
+
+export type WishInput = { species: string; note: string | null };
+
 export type Settings = {
   current_place_id: string | null;
   daily_summary_enabled: boolean;

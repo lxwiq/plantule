@@ -18,7 +18,9 @@ export type Table =
   | 'species_sheets'
   | 'diagnoses'
   | 'chat_messages'
-  | 'weather';
+  | 'weather'
+  | 'cuttings'
+  | 'wishes';
 
 const versions = new Map<Table, number>();
 const listeners = new Set<() => void>();

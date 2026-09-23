@@ -131,6 +131,35 @@ export function findReference(name: string): ReferencePlant | null {
   return null;
 }
 
+/** A plant suggested for what is typed, with the name of it that matched. */
+export type ReferenceMatch = { plant: ReferencePlant; name: string };
+
+/**
+ * Plants whose name starts like `query`, for suggestions while typing, from 2
+ * letters: a name matching exactly, then names starting with it, then names
+ * with a word starting with it. French names are tried first, and each plant
+ * comes once, with the name that matched best.
+ */
+export function searchReferences(query: string, limit = 5): ReferenceMatch[] {
+  const key = referenceKey(query);
+  if (key.length < 2) return [];
+  const found: (ReferenceMatch & { rank: number })[] = [];
+  for (const plant of REFERENCE_PLANTS) {
+    let best: (ReferenceMatch & { rank: number }) | null = null;
+    for (const name of [...plant.common_names, plant.scientific_name, ...plant.synonyms]) {
+      const nameKey = referenceKey(name);
+      const rank =
+        nameKey === key ? 0 : nameKey.startsWith(key) ? 1 : ` ${nameKey}`.includes(` ${key}`) ? 2 : null;
+      if (rank !== null && (!best || rank < best.rank)) best = { plant, name, rank };
+    }
+    if (best) found.push(best);
+  }
+  return found
+    .sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name, 'fr'))
+    .slice(0, limit)
+    .map(({ plant, name }) => ({ plant, name }));
+}
+
 /** The entry with this id (as stored in `CareSheet.reference_id`), or null. */
 export function getReference(id: string): ReferencePlant | null {
   byId ??= new Map(REFERENCE_PLANTS.map((plant) => [plant.id, plant]));

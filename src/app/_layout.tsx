@@ -132,6 +132,12 @@ function App() {
         <Stack.Screen name="room/[id]" options={{ title: 'Modifier la pièce', presentation: 'modal' }} />
         <Stack.Screen name="place/new" options={{ title: 'Nouveau lieu', presentation: 'modal' }} />
         <Stack.Screen name="place/edit" options={{ title: 'Modifier le lieu', presentation: 'modal' }} />
+        <Stack.Screen name="cutting/new" options={{ title: 'Nouvelle bouture', presentation: 'modal' }} />
+        <Stack.Screen name="cutting/[id]/index" options={{ title: '' }} />
+        <Stack.Screen name="cutting/[id]/edit" options={{ title: 'Modifier la bouture', presentation: 'modal' }} />
+        <Stack.Screen name="wish/new" options={{ title: 'Nouvelle envie', presentation: 'modal' }} />
+        <Stack.Screen name="wish/[id]/index" options={{ title: '' }} />
+        <Stack.Screen name="wish/[id]/edit" options={{ title: 'Modifier l’envie', presentation: 'modal' }} />
         <Stack.Screen name="settings" options={{ title: 'Réglages' }} />
         <Stack.Screen name="calendar" options={{ title: 'Calendrier' }} />
         <Stack.Screen name="scan/identify" options={{ title: 'Identification' }} />

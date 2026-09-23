@@ -1,6 +1,6 @@
 /**
  * The backup file: a zip holding `plantule.json` (every row of every table)
- * and `photos/<photo id>.jpg`. Everything here is pure: building and checking
+ * and `photos/<photo id>.jpg`, for the photos of plants and of cuttings. Everything here is pure: building and checking
  * the manifest, and preparing its rows for this phone. The file and database
  * work is in src/db/backup.ts.
  */
@@ -32,6 +32,8 @@ export const BACKUP_TABLES = [
   'events',
   'diagnoses',
   'chat_messages',
+  'cuttings',
+  'wishes',
   'settings',
 ] as const;
 
@@ -92,6 +94,21 @@ export function photoEntryName(photoId: string): string {
 export function photoIdOfEntry(name: string): string | null {
   const match = /^photos\/([^/]+)\.jpg$/.exec(name);
   return match && isSafePhotoId(match[1]) ? match[1] : null;
+}
+
+/** A photo file the rows point at. */
+export type PhotoFileRef = { id: string; uri: string };
+
+/** Every photo file of the rows: the plants' photos, then the cuttings' ones. */
+export function photoFilesOf(tables: Pick<BackupTables, 'photos' | 'cuttings'>): PhotoFileRef[] {
+  const refs: PhotoFileRef[] = [];
+  for (const { id, uri } of tables.photos) {
+    if (isSafePhotoId(id) && typeof uri === 'string') refs.push({ id, uri });
+  }
+  for (const { photo_id: id, photo_uri: uri } of tables.cuttings) {
+    if (isSafePhotoId(id) && typeof uri === 'string') refs.push({ id, uri });
+  }
+  return refs;
 }
 
 export type BackupCheck = { ok: true; backup: Backup } | { ok: false; error: string };
@@ -166,7 +183,7 @@ export function summarizeBackup(backup: Backup, photoFiles: ReadonlySet<string>)
     exportedAt: backup.exported_at,
     places: backup.tables.places.length,
     plants: backup.tables.plants.length,
-    photos: backup.tables.photos.filter((p) => isSafePhotoId(p.id) && photoFiles.has(p.id)).length,
+    photos: photoFilesOf(backup.tables).filter((photo) => photoFiles.has(photo.id)).length,
   };
 }
 
@@ -199,8 +216,9 @@ function settingValue(row: BackupRow | undefined): unknown {
 /**
  * The rows to write on this phone. Photos keep only those whose file is in
  * the archive, pointing at this phone's photos folder (paths differ between
- * phones); references to a dropped photo are cleared. The place shown must
- * exist, and the last backup is the one being imported.
+ * phones); references to a dropped photo are cleared, and so is the photo of
+ * a cutting without its file. The place shown must exist, and the last backup
+ * is the one being imported.
  */
 export function prepareImport(
   backup: Backup,
@@ -213,6 +231,13 @@ export function prepareImport(
     .map((p): BackupRow => ({ ...p, uri: photoUri(String(p.id)) }));
   const kept = new Set(photos.map((p) => p.id));
   const keptPhoto = (id: BackupValue) => (id !== null && kept.has(id) ? id : null);
+  const cuttings = tables.cuttings.map((c): BackupRow => {
+    if (!('photo_id' in c)) return c;
+    const id = isSafePhotoId(c.photo_id) && photoFiles.has(c.photo_id) ? c.photo_id : null;
+    return id
+      ? { ...c, photo_uri: photoUri(id) }
+      : { ...c, photo_id: null, photo_uri: null, photo_taken_at: null };
+  });
 
   const places = [...tables.places].sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
   const placeIds = new Set(places.map((p) => p.id));
@@ -230,6 +255,7 @@ export function prepareImport(
     plants: tables.plants.map((p) => ('main_photo_id' in p ? { ...p, main_photo_id: keptPhoto(p.main_photo_id) } : p)),
     photos,
     diagnoses: tables.diagnoses.map((d) => ('photo_id' in d ? { ...d, photo_id: keptPhoto(d.photo_id) } : d)),
+    cuttings,
     settings,
   };
 }

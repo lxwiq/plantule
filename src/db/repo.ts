@@ -19,6 +19,9 @@ import type {
   CareEvent,
   ChatMessage,
   ChatRole,
+  Cutting,
+  CuttingInput,
+  CuttingStatus,
   DiagnosisRecord,
   EventKind,
   Photo,
@@ -34,6 +37,8 @@ import type {
   Task,
   TaskInput,
   Weather,
+  Wish,
+  WishInput,
 } from './types';
 
 const now = () => new Date().toISOString();
@@ -83,15 +88,29 @@ export function setPlaceLocation(id: string, location: PlaceLocation | null) {
   notify('places', 'weather');
 }
 
-/** Deletes a place with its rooms, plants, tasks, journal, photos, diagnoses and conversations. */
+/** Deletes a place with its rooms, plants, tasks, journal, photos, diagnoses, conversations and cuttings. */
 export function deletePlace(id: string) {
   const files = db().getAllSync<{ uri: string }>(
-    'select ph.uri from photos ph join plants p on p.id = ph.plant_id where p.place_id = ?',
+    `select ph.uri from photos ph join plants p on p.id = ph.plant_id where p.place_id = ?
+     union all
+     select photo_uri as uri from cuttings where place_id = ? and photo_uri is not null`,
+    id,
     id,
   );
   db().runSync('delete from places where id = ?', id);
   files.forEach((f) => deletePhotoFile(f.uri));
-  notify('places', 'rooms', 'plants', 'photos', 'tasks', 'events', 'diagnoses', 'chat_messages', 'weather');
+  notify(
+    'places',
+    'rooms',
+    'plants',
+    'photos',
+    'tasks',
+    'events',
+    'diagnoses',
+    'chat_messages',
+    'weather',
+    'cuttings',
+  );
 }
 
 // Settings
@@ -244,12 +263,12 @@ export function updatePlant(id: string, input: PlantInput) {
   notify('plants');
 }
 
-/** Deletes a plant with its tasks, journal, photos, diagnoses and conversation. */
+/** Deletes a plant with its tasks, journal, photos, diagnoses and conversation. Its cuttings stay. */
 export function deletePlant(id: string) {
   const files = listPhotos(id);
   db().runSync('delete from plants where id = ?', id);
   files.forEach((f) => deletePhotoFile(f.uri));
-  notify('plants', 'photos', 'tasks', 'events', 'diagnoses', 'chat_messages');
+  notify('plants', 'photos', 'tasks', 'events', 'diagnoses', 'chat_messages', 'cuttings');
 }
 
 /** Links a plant to a species sheet, or unlinks it with null. */
@@ -821,6 +840,153 @@ export function deleteDiagnosis(id: string) {
   notify('diagnoses');
   const photo = row?.photo_id && row.photo_id !== row.main_photo_id ? getPhoto(row.photo_id) : null;
   if (photo) deletePhoto(photo);
+}
+
+// Cuttings
+
+/** Cuttings of a place, most recently started first. */
+export function listCuttings(placeId: string): Cutting[] {
+  return db().getAllSync<Cutting>(
+    'select * from cuttings where place_id = ? order by started_on desc, created_at desc',
+    placeId,
+  );
+}
+
+export function getCutting(id: string): Cutting | null {
+  return db().getFirstSync<Cutting>('select * from cuttings where id = ?', id);
+}
+
+/** The cutting a plant grew from, if it did. */
+export function getPlantCutting(plantId: string): Cutting | null {
+  return db().getFirstSync<Cutting>(
+    'select * from cuttings where plant_id = ? order by updated_at desc limit 1',
+    plantId,
+  );
+}
+
+export function createCutting(placeId: string, input: CuttingInput): Cutting {
+  const id = randomUUID();
+  const at = now();
+  db().runSync(
+    `insert into cuttings (id, place_id, parent_plant_id, species, started_on, method, notes, created_at, updated_at)
+     values (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    id,
+    placeId,
+    input.parent_plant_id,
+    clean(input.species),
+    input.started_on,
+    input.method,
+    clean(input.notes),
+    at,
+    at,
+  );
+  notify('cuttings');
+  return getCutting(id)!;
+}
+
+export function updateCutting(id: string, input: CuttingInput) {
+  db().runSync(
+    `update cuttings set parent_plant_id = ?, species = ?, started_on = ?, method = ?, notes = ?, updated_at = ?
+     where id = ?`,
+    input.parent_plant_id,
+    clean(input.species),
+    input.started_on,
+    input.method,
+    clean(input.notes),
+    now(),
+    id,
+  );
+  notify('cuttings');
+}
+
+export function setCuttingStatus(id: string, status: CuttingStatus) {
+  db().runSync('update cuttings set status = ?, updated_at = ? where id = ?', status, now(), id);
+  notify('cuttings');
+}
+
+/** « En faire une plante » : the cutting is potted, and keeps a link to the plant it became. */
+export function cuttingBecamePlant(id: string, plantId: string) {
+  db().runSync(
+    "update cuttings set status = 'potted', plant_id = ?, updated_at = ? where id = ?",
+    plantId,
+    now(),
+    id,
+  );
+  notify('cuttings');
+}
+
+/**
+ * Keeps a copy of a picked photo as the cutting's photo, dated `takenAt` (never
+ * in the future) or now, in place of the previous one. Null removes it.
+ */
+export async function setCuttingPhoto(id: string, photo: { uri: string; takenAt?: string } | null) {
+  const previous = getCutting(id)?.photo_uri ?? null;
+  const at = now();
+  let changes: number;
+  if (photo) {
+    const photoId = randomUUID();
+    const uri = await storePhotoFile(photo.uri, photoId);
+    changes = db().runSync(
+      'update cuttings set photo_id = ?, photo_uri = ?, photo_taken_at = ?, updated_at = ? where id = ?',
+      photoId,
+      uri,
+      photo.takenAt && photo.takenAt < at ? photo.takenAt : at,
+      at,
+      id,
+    ).changes;
+    // Deleted while the photo was copied.
+    if (changes === 0) deletePhotoFile(uri);
+  } else {
+    changes = db().runSync(
+      'update cuttings set photo_id = null, photo_uri = null, photo_taken_at = null, updated_at = ? where id = ?',
+      at,
+      id,
+    ).changes;
+  }
+  if (changes > 0 && previous) deletePhotoFile(previous);
+  notify('cuttings');
+}
+
+/** Deletes a cutting and its photo; the plant it became stays. */
+export function deleteCutting(id: string) {
+  const cutting = getCutting(id);
+  db().runSync('delete from cuttings where id = ?', id);
+  if (cutting?.photo_uri) deletePhotoFile(cutting.photo_uri);
+  notify('cuttings');
+}
+
+// Wishlist
+
+/** Species I would like to have, most recently added first. */
+export function listWishes(): Wish[] {
+  return db().getAllSync<Wish>('select * from wishes order by created_at desc');
+}
+
+export function getWish(id: string): Wish | null {
+  return db().getFirstSync<Wish>('select * from wishes where id = ?', id);
+}
+
+export function createWish(input: WishInput): Wish {
+  const wish: Wish = { id: randomUUID(), species: input.species.trim(), note: clean(input.note), created_at: now() };
+  db().runSync(
+    'insert into wishes (id, species, note, created_at) values (?, ?, ?, ?)',
+    wish.id,
+    wish.species,
+    wish.note,
+    wish.created_at,
+  );
+  notify('wishes');
+  return wish;
+}
+
+export function updateWish(id: string, input: WishInput) {
+  db().runSync('update wishes set species = ?, note = ? where id = ?', input.species.trim(), clean(input.note), id);
+  notify('wishes');
+}
+
+export function deleteWish(id: string) {
+  db().runSync('delete from wishes where id = ?', id);
+  notify('wishes');
 }
 
 // "Demande à Plantule" conversations
