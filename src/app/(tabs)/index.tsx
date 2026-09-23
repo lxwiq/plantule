@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import { UpdateBanner } from '@/components/app-update';
+import { PepinGreeting } from '@/components/pepin-greeting';
 import { TaskRow } from '@/components/task-row';
 import {
   Banner,
@@ -138,6 +139,8 @@ export default function Today() {
           </>
         }
       />
+
+      <PepinGreeting tasks={tasks} plantCount={plants.length} />
 
       <UpdateBanner />
 

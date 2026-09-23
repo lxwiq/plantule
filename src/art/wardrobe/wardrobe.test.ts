@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { POT_COLORS } from '../palette';
-import { normalizeOutfit, pepinSvg } from '../pepin';
+import { normalizeOutfit, pepinSvg, randomOutfit } from '../pepin';
 import { MOODS, type WardrobeSlot } from '../types';
 
 import { WARDROBE, wardrobeItem, wardrobeSlot } from '.';
@@ -20,6 +20,19 @@ describe('the wardrobe', () => {
     expect(wardrobeItem('hat-beanie', 'head')?.label).toBe('Bonnet à pompon');
     expect(wardrobeItem('hat-beanie', 'neck')).toBeUndefined();
     expect(normalizeOutfit({ head: 'neck-scarf' }).head).toBeNull();
+  });
+
+  it('dresses Pépin at random, keeping its plant and always changing something', () => {
+    const current = normalizeOutfit({ plant: 'monstera', pot: 'sage', head: 'hat-crown' });
+    for (let i = 0; i < 50; i++) {
+      const outfit = randomOutfit(current);
+      expect(normalizeOutfit(outfit)).toEqual(outfit);
+      expect(outfit.plant).toBe('monstera');
+      expect(outfit).not.toEqual(current);
+    }
+    // Even when chance keeps picking the same thing.
+    const stuck = randomOutfit(normalizeOutfit({ pot: 'terracotta' }), () => 0.99);
+    expect(stuck.plant).toBe('sprout');
   });
 
   it('draws every piece on every pot, with every face', () => {

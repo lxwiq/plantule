@@ -7,8 +7,8 @@ import { POT_COLORS, potPalette } from './palette';
 import { FOLIAGE } from './plants';
 import { ART_VIEWBOX, faceFragment, potFragment } from './pot';
 import { combine, svgDocument } from './svg';
-import { DEFAULT_OUTFIT, type Fragment, type Mood, type Outfit } from './types';
-import { wardrobeItem } from './wardrobe';
+import { DEFAULT_OUTFIT, type Fragment, type Mood, type Outfit, type WardrobeSlot } from './types';
+import { wardrobeItem, wardrobeSlot } from './wardrobe';
 
 /** The mascot's name until the user gives it another one. */
 export const DEFAULT_MASCOT_NAME = 'Pépin';
@@ -25,6 +25,31 @@ export function normalizeOutfit(outfit: Partial<Outfit> | null | undefined): Out
     neck: wardrobeItem(o.neck, 'neck') ? o.neck : null,
     held: wardrobeItem(o.held, 'held') ? o.held : null,
   };
+}
+
+/** How often « Au hasard » fills each slot. */
+const RANDOM_CHANCES: Record<WardrobeSlot, number> = { pattern: 0.5, head: 0.75, eyes: 0.4, neck: 0.5, held: 0.6 };
+
+/**
+ * A random pot color and clothes for Pépin, keeping the plant it grows. Always
+ * differs from `current`, so « Au hasard » visibly changes something.
+ */
+export function randomOutfit(current: Outfit, random: () => number = Math.random): Outfit {
+  const one = <T>(list: readonly T[]): T => list[Math.floor(random() * list.length)];
+  const maybe = (slot: WardrobeSlot) => (random() < RANDOM_CHANCES[slot] ? one(wardrobeSlot(slot)).id : null);
+  for (let attempt = 0; ; attempt++) {
+    const outfit: Outfit = {
+      plant: current.plant,
+      pot: one(Object.keys(POT_COLORS)),
+      pattern: maybe('pattern'),
+      head: maybe('head'),
+      eyes: maybe('eyes'),
+      neck: maybe('neck'),
+      held: maybe('held'),
+    };
+    const same = (Object.keys(outfit) as (keyof Outfit)[]).every((key) => outfit[key] === current[key]);
+    if (!same || attempt >= 10) return outfit;
+  }
 }
 
 /**
