@@ -16,10 +16,11 @@ Application Android de gestion des plantes. Usage perso : moi et mes proches, ch
 | Backend, connexion | Aucun (décision du 23/09/2026). L'API Rust déjà écrite est gardée sur la branche `backend-rust` |
 | Partage | Pas de partage entre téléphones. Plusieurs **lieux** possibles sur un même téléphone (appart, maison de campagne…) |
 | Notifications | Locales uniquement, un résumé par jour |
-| Réseau | Seulement pour télécharger le modèle et pour la météo (Open-Meteo, gratuit, sans compte : seules les coordonnées arrondies d'une ville sont envoyées) |
+| Réseau | Seulement pour télécharger le modèle, les mises à jour de l'app et pour la météo (Open-Meteo, gratuit, sans compte : seules les coordonnées arrondies d'une ville sont envoyées) |
 | IA | Gemma 4 dans sa version mobile (E2B/E4B), qui tourne sur le téléphone : gratuit, sans serveur, comprend les images |
 | Scan IA | Phase 2 |
 | Livraison | APK construit par GitHub Actions (pas EAS) |
+| Mises à jour | L'APK cherche lui-même la nouvelle version sur GitHub Releases : canal Test (`preview`, chaque push sur main) ou Stable (tags `v*`), fixé au build. L'installateur d'Android demande toujours de confirmer |
 
 ## Architecture
 
@@ -171,6 +172,7 @@ Onglets : **Aujourd'hui · Plantes · Scan · Maison**. L'onglet Plantes a trois
 - [x] **Export vers l'agenda du téléphone** : dans Réglages, « Ajouter les soins à mon agenda » crée un agenda local « Plantule » avec un événement par jour de soins sur 30 jours. Il se réécrit tout seul quand les soins changent et disparaît quand on désactive (`expo-calendar`)
 - [x] **Météo pour les plantes d'extérieur** : un lieu peut avoir une ville (recherche Open-Meteo). Une journée d'au moins 5 mm de pluie compte comme arrosage pour les plantes des pièces en extérieur : journal « Arrosé par la pluie », cycle qui repart du jour de pluie, bandeau sur Aujourd'hui, et conseil d'attendre quand il va pleuvoir
 - [x] **Boutures et liste d'envies** : dans l'onglet Plantes. Les boutures ont plante mère, méthode, statut, notes et photo, et « En faire une plante » crée la plante pré-remplie en gardant le lien. Les envies ont des suggestions de la base de référence, affichent lumière, arrosage et toxicité, et « Je l'ai ! » crée la plante. Les deux sont dans la sauvegarde
+- [x] **Mises à jour dans l'app** : l'APK trouve tout seul la nouvelle version sur GitHub (au lancement et au retour dans l'app, au plus toutes les 4 h), l'annonce par un bandeau sur Aujourd'hui et dans Réglages, la télécharge avec la progression et en vérifie la taille et l'empreinte, puis la passe à l'installateur d'Android. Chaque build publie un `update.json` à côté de l'APK, avec les commits depuis le build précédent. L'AAB pour Google Play n'a ni la vérification ni la permission d'installer (règles du Play Store)
 - [x] En plus : une nouvelle plante d'une espèce connue de la base de référence, sans fiche, reçoit le rythme d'arrosage, le coefficient d'hiver et la lumière de la base
 - [ ] Version iOS
 
@@ -183,6 +185,7 @@ Onglets : **Aujourd'hui · Plantes · Scan · Maison**. L'onglet Plantes a trois
 - la recherche de ville et la vraie réponse d'Open-Meteo, sans réseau puis au retour du réseau ;
 - l'arrosage par la pluie au retour dans l'app, et le résumé quotidien recalculé ;
 - la photo d'une bouture, puis sa reprise comme première photo de la plante ; un export puis un import avec des boutures qui ont une photo ;
+- les mises à jour : le bandeau après un nouveau push (ou « Rechercher une mise à jour »), la progression et « Annuler », l'autorisation « Installer des applis inconnues » la première fois, puis l'installation, avec les données intactes ; rien ne doit s'afficher hors ligne ni pendant la minute où la release `preview` est recréée ; le message sur données mobiles ; au premier tag `v*`, l'APK en canal Stable et l'AAB sans la permission ;
 - le défilement des puces « Plante mère » avec beaucoup de plantes, et le retour arrière après « Je l'ai ! » et « En faire une plante ».
 
 ## Risques et points ouverts
@@ -199,5 +202,6 @@ Onglets : **Aujourd'hui · Plantes · Scan · Maison**. L'onglet Plantes a trois
 - **Questions et diagnostic sans le modèle** : « Demande à Plantule » et le diagnostic ont besoin de Gemma, donc d’un téléphone de 6 Go de RAM et du modèle téléchargé. Ailleurs, la ligne « Demande à Plantule » est masquée.
 - **Pluie et balcon abrité** : une pièce marquée « en extérieur » est considérée comme arrosée par la pluie. Un balcon abrité doit donc être marqué en intérieur, sinon ses plantes seront oubliées.
 - **Pluie et notifications** : les résumés sont programmés à l'avance. La pluie n'est prise en compte qu'à l'ouverture de l'app : sans l'ouvrir, le rappel d'arrosage part quand même.
+- **Premier APK avec les mises à jour** : les APK installés avant n'ont pas le système de mise à jour. Le premier qui l'a s'installe à la main, une dernière fois, depuis le lien `preview`.
 - **Notifications sans ouvrir l'app** : les résumés sont programmés pour 30 jours. Au-delà sans ouvrir l'app, il n'y en a plus.
 - **Version web de développement** : expo-sqlite sur le web coupe les résultats de requête de plus de 255 octets (`web/WorkerChannel.ts`), ce qui casse l'app dans le navigateur avec de vraies données. Pour tester sur le web, il faut corriger ce fichier en local, sans le committer.
