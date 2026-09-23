@@ -57,7 +57,17 @@ function NotificationPrompt() {
  * What the rain did for the outdoor plants today, and a hint to wait when rain
  * is on its way while some of them are due.
  */
-function RainNotices({ placeId, tasks, plants, rooms }: { placeId: string; tasks: Task[]; plants: Plant[]; rooms: Room[] }) {
+function RainNotices({
+  placeId,
+  tasks,
+  plants,
+  rooms,
+}: {
+  placeId: string;
+  tasks: Task[];
+  plants: Plant[];
+  rooms: Room[];
+}) {
   const weather = useWeather(placeId);
   const day = today();
   if (!weather) return null;

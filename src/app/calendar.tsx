@@ -338,7 +338,8 @@ function PlannedRow({ task, plant, roomName }: { task: Task; plant: Plant; roomN
 /** Care written in the journal that day. */
 function DoneRow({ event, plant }: { event: CareEvent; plant: Plant }) {
   // The rain has no time: only its day is known.
-  const text = event.rain_mm != null ? describeEvent(event) : `${describeEvent(event)} à ${formatTime(event.occurred_at)}`;
+  const text =
+    event.rain_mm != null ? describeEvent(event) : `${describeEvent(event)} à ${formatTime(event.occurred_at)}`;
   return (
     <ListRow
       leading={<CareThumb plant={plant} kind={event.task_kind} />}

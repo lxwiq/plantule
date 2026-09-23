@@ -66,7 +66,8 @@ const query = (params: Record<string, string | number>) =>
 
 /** Towns matching a name, in French. Open-Meteo needs at least 2 letters. */
 export function geocodingUrl(name: string): string {
-  return `https://geocoding-api.open-meteo.com/v1/search?${query({ name: name.trim(), count: 6, language: 'fr', format: 'json' })}`;
+  const params = query({ name: name.trim(), count: 6, language: 'fr', format: 'json' });
+  return `https://geocoding-api.open-meteo.com/v1/search?${params}`;
 }
 
 /**
