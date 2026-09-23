@@ -26,6 +26,7 @@ import {
   useDiagnoses,
   usePhotos,
   usePlant,
+  usePlantCutting,
   usePlantEvents,
   useRooms,
   useSpeciesSheet,
@@ -37,6 +38,7 @@ import type { Plant } from '@/db/types';
 import { useAddPhoto } from '@/hooks/use-add-photo';
 import { careActions } from '@/lib/care-actions';
 import { isSheetComplete } from '@/lib/care-sheet';
+import { cuttingTitle } from '@/lib/cuttings';
 import { formatShortDate } from '@/lib/dates';
 import { closeScreen } from '@/lib/navigation';
 import { photoDay } from '@/lib/photos';
@@ -68,6 +70,9 @@ function PlantDetails({ plant }: { plant: Plant }) {
   const photos = usePhotos(plant.id);
   const { saving: savingPhoto, add: choosePhoto } = useAddPhoto(plant.id);
   const mainPhotoId = plant.main_photo_id;
+  // The cutting it grew from, and the plant that cutting was taken from.
+  const cutting = usePlantCutting(plant.id);
+  const cuttingParent = usePlant(cutting?.parent_plant_id ?? '');
 
   const room = rooms.find((r) => r.id === plant.room_id);
   const plantTasks = useMemo(
@@ -274,8 +279,17 @@ function PlantDetails({ plant }: { plant: Plant }) {
 
         <SpeciesSheetSection plant={plant} />
 
-        {(details.length > 0 || plant.notes) && (
+        {(details.length > 0 || plant.notes || cutting) && (
           <ListSection title="Infos">
+            {cutting ? (
+              <ListRow
+                leading={icons.propagation}
+                title={cuttingTitle(cutting, cuttingParent?.nickname)}
+                subtitle="Origine"
+                onPress={() => router.push({ pathname: '/cutting/[id]', params: { id: cutting.id } })}
+                chevron
+              />
+            ) : null}
             {details.map((d) => (
               <ListRow key={d.label} title={d.value} subtitle={d.label} />
             ))}

@@ -17,7 +17,10 @@ export type Table =
   | 'settings'
   | 'species_sheets'
   | 'diagnoses'
-  | 'chat_messages';
+  | 'chat_messages'
+  | 'weather'
+  | 'cuttings'
+  | 'wishes';
 
 const versions = new Map<Table, number>();
 const listeners = new Set<() => void>();

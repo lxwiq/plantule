@@ -44,7 +44,7 @@ function scanFooter() {
 }
 
 const BACKUP_FOOTER =
-  'Un fichier avec tes lieux, plantes, soins, journal, photos et fiches. Garde-le sur ton Drive ou envoie-le sur ton nouveau téléphone.';
+  'Un fichier avec tes lieux, plantes, soins, journal, photos, fiches, boutures et envies. Garde-le sur ton Drive ou envoie-le sur ton nouveau téléphone.';
 
 /** Export everything to a file, or replace everything with a backup file. */
 function BackupSection() {
@@ -113,7 +113,7 @@ function BackupSection() {
     }
     Alert.alert(
       'Remplacer les données de ce téléphone ?',
-      `${describeBackup(picked.summary)}\n\nTout ce qui est sur ce téléphone (lieux, plantes, soins, journal, photos et réglages) sera remplacé par la sauvegarde. C’est définitif.`,
+      `${describeBackup(picked.summary)}\n\nTout ce qui est sur ce téléphone (lieux, plantes, soins, journal, photos, boutures, envies et réglages) sera remplacé par la sauvegarde. C’est définitif.`,
       [
         { text: 'Annuler', style: 'cancel' },
         { text: 'Remplacer', style: 'destructive', onPress: () => void restore(picked) },

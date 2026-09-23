@@ -90,3 +90,31 @@ export function useDiagnosis(diagnosisId: string) {
 export function useChatMessages(plantId: string) {
   return useLiveQuery(`chat_messages:${plantId}`, ['chat_messages'], () => repo.listChatMessages(plantId));
 }
+
+/** The rain around a place, as last fetched, and what it last watered. */
+export function useWeather(placeId: string) {
+  return useLiveQuery(`weather:${placeId}`, ['weather'], () => repo.getWeather(placeId));
+}
+
+/** Cuttings of a place, most recently started first. */
+export function useCuttings(placeId: string) {
+  return useLiveQuery(`cuttings:${placeId}`, ['cuttings'], () => repo.listCuttings(placeId));
+}
+
+export function useCutting(cuttingId: string) {
+  return useLiveQuery(`cutting:${cuttingId}`, ['cuttings'], () => repo.getCutting(cuttingId));
+}
+
+/** The cutting a plant grew from, if it did. */
+export function usePlantCutting(plantId: string) {
+  return useLiveQuery(`plant_cutting:${plantId}`, ['cuttings'], () => repo.getPlantCutting(plantId));
+}
+
+/** The wishlist, shared by every place, most recently added first. */
+export function useWishes() {
+  return useLiveQuery('wishes', ['wishes'], repo.listWishes);
+}
+
+export function useWish(wishId: string) {
+  return useLiveQuery(`wish:${wishId}`, ['wishes'], () => repo.getWish(wishId));
+}

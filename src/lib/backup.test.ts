@@ -15,6 +15,7 @@ import {
   openArchive,
   parseBackup,
   photoEntryName,
+  photoFilesOf,
   photoIdOfEntry,
   prepareImport,
   summarizeBackup,
@@ -44,6 +45,21 @@ function tables(overrides: Partial<BackupTables> = {}): BackupTables {
       { id: 'diag-1', plant_id: 'plant-2', photo_id: 'photo-2', status: 'watch', data: '{}' },
       { id: 'diag-2', plant_id: 'plant-1', photo_id: null, status: 'healthy', data: '{}' },
     ],
+    cuttings: [
+      {
+        id: 'cutting-1',
+        place_id: 'place-a',
+        parent_plant_id: 'plant-1',
+        species: 'Monstera deliciosa',
+        method: 'water',
+        status: 'rooting',
+        photo_id: 'photo-3',
+        photo_uri: 'file:///old/photos/photo-3.jpg',
+        photo_taken_at: '2026-08-01T10:00:00.000Z',
+      },
+      { id: 'cutting-2', place_id: 'place-a', parent_plant_id: null, photo_id: null, photo_uri: null },
+    ],
+    wishes: [{ id: 'wish-1', species: 'Pilea', note: 'Chez Mamie', created_at: '2026-09-01T10:00:00.000Z' }],
     settings: [
       { key: 'current_place_id', value: '"place-b"' },
       { key: 'daily_summary_time', value: '"09:30"' },
@@ -108,14 +124,22 @@ describe('backup manifest', () => {
   });
 
   it('accepts an older schema, with missing tables as empty', () => {
-    const { diagnoses, chat_messages, ...older } = tables();
+    const { diagnoses, chat_messages, cuttings, wishes, ...older } = tables();
     const result = parseBackup(json({ ...backup(), schema_version: 1, tables: older }), SCHEMA);
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.backup.tables.diagnoses).toEqual([]);
       expect(result.backup.tables.chat_messages).toEqual([]);
+      expect(result.backup.tables.cuttings).toEqual([]);
+      expect(result.backup.tables.wishes).toEqual([]);
       expect(result.backup.tables.plants).toHaveLength(2);
     }
+  });
+
+  it('holds the cuttings and the wishlist', () => {
+    const result = parseBackup(json(backup()), SCHEMA);
+    expect(result.ok && result.backup.tables.cuttings.map((c) => c.id)).toEqual(['cutting-1', 'cutting-2']);
+    expect(result.ok && result.backup.tables.wishes).toEqual(tables().wishes);
   });
 
   it('ignores tables this app does not know', () => {
@@ -125,6 +149,17 @@ describe('backup manifest', () => {
 });
 
 describe('photo entries', () => {
+  it('lists the photo files of plants and cuttings', () => {
+    const data = tables();
+    expect(photoFilesOf(data)).toEqual([
+      { id: 'photo-1', uri: 'file:///old/photos/photo-1.jpg' },
+      { id: 'photo-2', uri: 'file:///old/photos/photo-2.jpg' },
+      { id: 'photo-3', uri: 'file:///old/photos/photo-3.jpg' },
+    ]);
+    const unsafe = { ...data, cuttings: [{ id: 'c', photo_id: '../x', photo_uri: 'file:///x.jpg' }] };
+    expect(photoFilesOf(unsafe).map((p) => p.id)).toEqual(['photo-1', 'photo-2']);
+  });
+
   it('maps photo ids to archive entries and back', () => {
     expect(photoEntryName('0c9e4f5a-1b2c')).toBe('photos/0c9e4f5a-1b2c.jpg');
     expect(photoIdOfEntry('photos/0c9e4f5a-1b2c.jpg')).toBe('0c9e4f5a-1b2c');
@@ -141,9 +176,11 @@ describe('import preparation', () => {
   const uri = (id: string) => `file:///new/photos/${id}.jpg`;
 
   it('points photos at this phone', () => {
-    const prepared = prepareImport(backup(), new Set(['photo-1', 'photo-2']), uri);
+    const prepared = prepareImport(backup(), new Set(['photo-1', 'photo-2', 'photo-3']), uri);
     expect(prepared.photos.map((p) => p.uri)).toEqual([uri('photo-1'), uri('photo-2')]);
     expect(prepared.photos[0]).toMatchObject({ id: 'photo-1', plant_id: 'plant-1', created_at: '2026-02-01' });
+    expect(prepared.cuttings[0]).toMatchObject({ photo_id: 'photo-3', photo_uri: uri('photo-3') });
+    expect(photoFilesOf(prepared).map((p) => p.id)).toEqual(['photo-1', 'photo-2', 'photo-3']);
   });
 
   it('drops a photo without its file and clears what referred to it', () => {
@@ -151,6 +188,8 @@ describe('import preparation', () => {
     expect(prepared.photos.map((p) => p.id)).toEqual(['photo-1']);
     expect(prepared.plants.map((p) => p.main_photo_id)).toEqual(['photo-1', null]);
     expect(prepared.diagnoses.map((d) => d.photo_id)).toEqual([null, null]);
+    expect(prepared.cuttings[0]).toMatchObject({ id: 'cutting-1', photo_id: null, photo_uri: null, photo_taken_at: null });
+    expect(prepared.cuttings[1]).toMatchObject({ id: 'cutting-2', photo_id: null, photo_uri: null });
   });
 
   it('clears a main photo that is not in the backup at all', () => {
@@ -205,6 +244,7 @@ describe('summary', () => {
   it('counts places, plants and the photos that come with a file', () => {
     const summary = summarizeBackup(backup(), new Set(['photo-2', 'stray']));
     expect(summary).toEqual({ exportedAt: '2026-09-12T18:30:00.000Z', places: 2, plants: 2, photos: 1 });
+    expect(summarizeBackup(backup(), new Set(['photo-2', 'photo-3'])).photos).toBe(2);
   });
 
   it('describes the backup in French', () => {
@@ -241,17 +281,18 @@ describe('archive', () => {
   }
 
   it('reads back the manifest and the photos it was written with', () => {
-    const zip = archive({ 'photo-1': jpeg(7), 'photo-2': jpeg(13) });
+    const zip = archive({ 'photo-1': jpeg(7), 'photo-2': jpeg(13), 'photo-3': jpeg(5) });
     const result = openArchive(zip, SCHEMA);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.opened.backup).toEqual(backup());
-    expect([...result.opened.photoFiles]).toEqual(['photo-1', 'photo-2']);
-    expect(result.opened.summary.photos).toBe(2);
+    expect([...result.opened.photoFiles]).toEqual(['photo-1', 'photo-2', 'photo-3']);
+    expect(result.opened.summary.photos).toBe(3);
 
-    const photos = extractPhotos(zip, ['photo-2']);
-    expect([...photos.keys()]).toEqual(['photo-2']);
+    const photos = extractPhotos(zip, ['photo-2', 'photo-3']);
+    expect([...photos.keys()]).toEqual(['photo-2', 'photo-3']);
     expect(photos.get('photo-2')).toEqual(jpeg(13));
+    expect(photos.get('photo-3')).toEqual(jpeg(5));
   });
 
   it('counts only the photos whose file made it into the archive', () => {

@@ -2,12 +2,14 @@ import { View } from 'react-native';
 
 import type { CareEvent } from '@/db/types';
 import { Icon, icons, Text } from '@/components/ui';
-import { formatRelativeTime } from '@/lib/dates';
+import { formatRelativeDay, formatRelativeTime, toDateString } from '@/lib/dates';
 import { TASK_KINDS } from '@/lib/labels';
+import { formatRain } from '@/lib/weather';
 import { radius, spacing, useAccent, useTheme } from '@/theme';
 
-/** "Arrosage fait", "Arrosage reporté de 2 j"... */
+/** "Arrosage fait", "Arrosage reporté de 2 j", "Arrosé par la pluie (8 mm)"... */
 export function describeEvent(event: CareEvent): string {
+  if (event.rain_mm != null) return `Arrosé par la pluie (${formatRain(event.rain_mm)})`;
   const task = event.task_label?.trim() || TASK_KINDS[event.task_kind].label;
   switch (event.kind) {
     case 'done':
@@ -23,11 +25,13 @@ export function EventRow({ event }: { event: CareEvent }) {
   const theme = useTheme();
   const accent = useAccent(TASK_KINDS[event.task_kind].accent);
   const icon =
-    event.kind === 'done'
-      ? TASK_KINDS[event.task_kind].icon
-      : event.kind === 'snoozed'
-        ? icons.snooze
-        : icons.wet;
+    event.rain_mm != null
+      ? icons.rain
+      : event.kind === 'done'
+        ? TASK_KINDS[event.task_kind].icon
+        : event.kind === 'snoozed'
+          ? icons.snooze
+          : icons.wet;
   const done = event.kind === 'done';
 
   return (
@@ -58,7 +62,10 @@ export function EventRow({ event }: { event: CareEvent }) {
           </Text>
         ) : null}
         <Text variant="caption" tone="tertiary">
-          {formatRelativeTime(event.occurred_at)}
+          {event.rain_mm != null
+            ? // The rain has no time: only its day is known.
+              formatRelativeDay(toDateString(new Date(event.occurred_at)))
+            : formatRelativeTime(event.occurred_at)}
         </Text>
       </View>
     </View>

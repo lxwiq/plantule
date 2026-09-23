@@ -2,6 +2,7 @@
 
 import type { CareSheet } from '@/lib/care-sheet';
 import type { Diagnosis, DiagnosisStatus } from '@/lib/diagnosis';
+import type { RainHour } from '@/lib/weather';
 
 export type Light = 'full_sun' | 'bright_indirect' | 'partial_shade' | 'shade';
 
@@ -21,7 +22,28 @@ export type EventKind = 'done' | 'snoozed' | 'soil_wet';
 export type Place = {
   id: string;
   name: string;
+  /** The town it is in, for the rain on its outdoor plants; null when not set. */
+  location_name: string | null;
+  latitude: number | null;
+  longitude: number | null;
   created_at: string;
+};
+
+/** Where a place is, for the weather. */
+export type PlaceLocation = { name: string; latitude: number; longitude: number };
+
+/**
+ * The rain around a place, from Open-Meteo, and the last time it watered the
+ * outdoor plants. A cache, fetched again when missing: not in backups.
+ */
+export type Weather = {
+  place_id: string;
+  /** ISO instant of the forecast: hours ending later were still to come. */
+  fetched_at: string;
+  /** Hours with rain, over the past days and the next two. */
+  hours: RainHour[];
+  /** `on` the day it was noticed, `rain_day` the day it rained. */
+  watered: { on: string; rain_day: string; mm: number; plants: number } | null;
 };
 
 export type Room = {
@@ -111,6 +133,8 @@ export type CareEvent = {
   occurred_at: string;
   postponed_days: number | null;
   note: string | null;
+  /** Set when the rain did it (kind "done"), in mm. */
+  rain_mm: number | null;
 };
 
 /** A health check of a plant from a photo, kept to follow how it does. */
@@ -137,6 +161,52 @@ export type ChatMessage = {
   text: string;
   created_at: string;
 };
+
+export type CuttingMethod = 'water' | 'soil' | 'sphagnum' | 'perlite' | 'other';
+
+/** Rooting, then rooted, then potted; or failed. */
+export type CuttingStatus = 'rooting' | 'rooted' | 'potted' | 'failed';
+
+/** A cutting, kept with the place it grows in. */
+export type Cutting = {
+  id: string;
+  place_id: string;
+  /** The plant of the collection it was taken from; null when unknown or deleted. */
+  parent_plant_id: string | null;
+  /** The plant it became (« En faire une plante »). */
+  plant_id: string | null;
+  /** Free text, like a plant's. */
+  species: string | null;
+  started_on: string;
+  method: CuttingMethod;
+  status: CuttingStatus;
+  notes: string | null;
+  /** The file of its photo: `photo_id` names it in the photos folder and in backups. */
+  photo_id: string | null;
+  photo_uri: string | null;
+  photo_taken_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CuttingInput = {
+  parent_plant_id: string | null;
+  species: string | null;
+  started_on: string;
+  method: CuttingMethod;
+  notes: string | null;
+};
+
+/** A species I would like to have, whatever the place. */
+export type Wish = {
+  id: string;
+  /** Free text, often a name from the reference base. */
+  species: string;
+  note: string | null;
+  created_at: string;
+};
+
+export type WishInput = { species: string; note: string | null };
 
 export type Settings = {
   current_place_id: string | null;

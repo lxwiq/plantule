@@ -109,6 +109,7 @@ function event(kind: CareEvent['kind'], taskKind: CareEvent['task_kind'], daysAg
     occurred_at: at.toISOString(),
     postponed_days: postponed,
     note: null,
+    rain_mm: null,
   };
 }
 
@@ -183,6 +184,13 @@ describe('reading what the app knows of a plant', () => {
     expect(events[0]).toEqual({ kind: 'done', taskKind: 'mist', day: '2026-01-15', postponedDays: null });
     expect(events).toContainEqual({ kind: 'soil_wet', taskKind: 'water', day: '2026-01-01', postponedDays: 2 });
   });
+
+  it('says when the rain did the watering', () => {
+    jest.mocked(listPlantEvents).mockReturnValue([{ ...event('done', 'water', 1), rain_mm: 8 }, event('done', 'water', 9)]);
+    const events = buildPlantContext('p1')!.recentEvents;
+    expect(events[0]).toEqual({ kind: 'done', taskKind: 'water', day: '2026-01-14', postponedDays: null, rainMm: 8 });
+    expect(events[1]).not.toHaveProperty('rainMm');
+  });
 });
 
 describe('the context given to the model', () => {
@@ -249,6 +257,12 @@ describe('the context given to the model', () => {
     expect(text).toContain('- brumisation : tous les 4 jours');
     expect(text).not.toContain('Données vérifiées');
     expect(text).toContain('Pièce : Balcon, dehors.');
+    expect(
+      contextText({
+        ...context,
+        recentEvents: [{ kind: 'done', taskKind: 'water', day: '2026-01-14', postponedDays: null, rainMm: 8.4 }],
+      }),
+    ).toContain('- hier : arrosage fait par la pluie (8 mm)');
     expect(text).toContain('Mois : juillet (été : pleine pousse).');
     expect(text).toContain('Pas de rappel d’arrosage dans l’app.');
     expect(text).toContain('Aucun soin noté dans l’app pour l’instant.');

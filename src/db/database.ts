@@ -131,6 +131,58 @@ const MIGRATIONS: string[] = [
   update photos set taken_at = created_at;
   create index photos_taken_idx on photos (plant_id, taken_at);
   `,
+  // 5: the town of a place, for the rain on its outdoor plants; the rain that
+  // watered a plant, in the journal; and the rain around each place, a cache
+  // fetched again when missing (not in backups, gone with its place).
+  `
+  alter table places add column location_name text;
+  alter table places add column latitude real;
+  alter table places add column longitude real;
+
+  alter table events add column rain_mm real;
+
+  create table weather (
+    place_id text primary key references places (id) on delete cascade,
+    fetched_at text not null,
+    hours text not null,
+    watered_on text,
+    rain_day text,
+    rain_mm real,
+    watered_plants integer
+  );
+  `,
+  // 6: cuttings, kept with their place and linked to the plant they come from
+  // and to the one they became; and the wishlist, shared by every place. The
+  // photo of a cutting is a file in the photos folder, named after photo_id.
+  // No check on the method: its list may grow.
+  `
+  create table cuttings (
+    id text primary key,
+    place_id text not null references places (id) on delete cascade,
+    parent_plant_id text references plants (id) on delete set null,
+    plant_id text references plants (id) on delete set null,
+    species text,
+    started_on text not null,
+    method text not null,
+    status text not null default 'rooting' check (status in ('rooting', 'rooted', 'potted', 'failed')),
+    notes text,
+    photo_id text,
+    photo_uri text,
+    photo_taken_at text,
+    created_at text not null,
+    updated_at text not null
+  );
+  create index cuttings_place_idx on cuttings (place_id, started_on);
+  create index cuttings_parent_idx on cuttings (parent_plant_id);
+  create index cuttings_plant_idx on cuttings (plant_id);
+
+  create table wishes (
+    id text primary key,
+    species text not null,
+    note text,
+    created_at text not null
+  );
+  `,
 ];
 
 export const DATABASE_NAME = 'plantule.db';
