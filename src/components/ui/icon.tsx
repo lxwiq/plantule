@@ -53,6 +53,7 @@ export const icons = {
   pot: { ios: 'cylinder', android: 'straighten' },
   problem: { ios: 'bandage', android: 'healing' },
   propagation: { ios: 'leaf.arrow.triangle.circlepath', android: 'psychiatry' },
+  rain: { ios: 'cloud.rain', android: 'rainy' },
   restore: { ios: 'square.and.arrow.down', android: 'settings_backup_restore' },
   retry: { ios: 'arrow.clockwise', android: 'refresh' },
   room: { ios: 'sofa', android: 'chair' },

@@ -131,6 +131,26 @@ const MIGRATIONS: string[] = [
   update photos set taken_at = created_at;
   create index photos_taken_idx on photos (plant_id, taken_at);
   `,
+  // 5: the town of a place, for the rain on its outdoor plants; the rain that
+  // watered a plant, in the journal; and the rain around each place, a cache
+  // fetched again when missing (not in backups, gone with its place).
+  `
+  alter table places add column location_name text;
+  alter table places add column latitude real;
+  alter table places add column longitude real;
+
+  alter table events add column rain_mm real;
+
+  create table weather (
+    place_id text primary key references places (id) on delete cascade,
+    fetched_at text not null,
+    hours text not null,
+    watered_on text,
+    rain_day text,
+    rain_mm real,
+    watered_plants integer
+  );
+  `,
 ];
 
 export const DATABASE_NAME = 'plantule.db';

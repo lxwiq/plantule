@@ -88,7 +88,13 @@ export default function PlaceScreen() {
               accessibilityHint="Afficher ce lieu"
             />
           ))}
-        <ListRow leading={icons.edit} title="Renommer ce lieu" onPress={() => router.push('/place/edit')} chevron />
+        <ListRow
+          leading={icons.edit}
+          title="Modifier ce lieu"
+          subtitle={place.location_name ? `Météo : ${place.location_name}` : 'Nom, ville pour la météo'}
+          onPress={() => router.push('/place/edit')}
+          chevron
+        />
         <ListRow leading={icons.add} title="Ajouter un lieu" onPress={() => router.push('/place/new')} chevron />
       </ListSection>
 

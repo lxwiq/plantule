@@ -203,7 +203,7 @@ export async function restoreBackup({ backup, archive, photoFiles }: PickedBacku
   } finally {
     deleteQuietly(staging);
   }
-  notify(...BACKUP_TABLES);
+  notify(...BACKUP_TABLES, 'weather');
 }
 
 function replaceRows(tables: BackupTables) {

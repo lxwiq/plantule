@@ -9,6 +9,7 @@ import type { EventKind, Light, TaskKind } from '@/db/types';
 import type { CareSheet } from '@/lib/care-sheet';
 import { daysBetween, toDateString, today } from '@/lib/dates';
 import { TASK_KINDS } from '@/lib/labels';
+import { formatRain } from '@/lib/weather';
 import {
   everyText,
   figuresLines,
@@ -43,8 +44,14 @@ export type PlantContext = {
   today: string;
   /** 1 (January) to 12. */
   month: number;
-  /** Care done, postponed or "soil still wet", most recent first, at most 8. */
-  recentEvents: { kind: EventKind; taskKind: TaskKind; day: string; postponedDays: number | null }[];
+  /** Care done, postponed or "soil still wet", most recent first, at most 8. `rainMm` when the rain did it. */
+  recentEvents: {
+    kind: EventKind;
+    taskKind: TaskKind;
+    day: string;
+    postponedDays: number | null;
+    rainMm?: number;
+  }[];
   /** The plant's watering task, if it has one. */
   watering: { intervalDays: number; winterFactor: number; wetStreak: number; nextDueOn: string } | null;
   /** Free text from the plant's form, e.g. "Terre cuite, 20 cm". */
@@ -89,6 +96,7 @@ export function buildPlantContext(plantId: string): PlantContext | null {
       taskKind: event.task_kind,
       day: toDateString(new Date(event.occurred_at)),
       postponedDays: event.postponed_days,
+      ...(event.rain_mm != null ? { rainMm: event.rain_mm } : {}),
     }));
 
   const day = today();
@@ -172,8 +180,9 @@ function daysAgo(day: string, from: string): string {
   return `il y a ${days} j`;
 }
 
-function eventText({ kind, taskKind, postponedDays }: PlantContext['recentEvents'][number]): string {
+function eventText({ kind, taskKind, postponedDays, rainMm }: PlantContext['recentEvents'][number]): string {
   const label = TASK_KINDS[taskKind].label.toLowerCase();
+  if (rainMm !== undefined) return `${label} fait par la pluie (${formatRain(rainMm)})`;
   const by = postponedDays ? ` de ${postponedDays} j` : '';
   if (kind === 'soil_wet') return `${label} reporté${by}, terreau encore humide`;
   if (kind === 'snoozed') return `${label} reporté${by}`;

@@ -10,6 +10,7 @@ import { useCurrentPlace, usePlants, useSettings, useTasks } from '@/db/hooks';
 import { ensurePlace } from '@/db/repo';
 import { syncDailySummary } from '@/notifications/daily-summary';
 import { palettes, typography, useScheme, useTheme } from '@/theme';
+import { useWeatherRefresh } from '@/weather/sync';
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -54,6 +55,12 @@ function DailySummarySync() {
   return null;
 }
 
+/** Fetches the rain of places with a town when the app opens or comes back, and lets it water. */
+function WeatherSync() {
+  useWeatherRefresh();
+  return null;
+}
+
 export default function RootLayout() {
   // The app renders once the database is open and migrated.
   return (
@@ -80,6 +87,7 @@ function App() {
     <ThemeProvider value={navigationTheme}>
       <StatusBar style="auto" />
       <DailySummarySync />
+      <WeatherSync />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: theme.background },
@@ -123,7 +131,7 @@ function App() {
         <Stack.Screen name="room/new" options={{ title: 'Nouvelle pièce', presentation: 'modal' }} />
         <Stack.Screen name="room/[id]" options={{ title: 'Modifier la pièce', presentation: 'modal' }} />
         <Stack.Screen name="place/new" options={{ title: 'Nouveau lieu', presentation: 'modal' }} />
-        <Stack.Screen name="place/edit" options={{ title: 'Renommer le lieu', presentation: 'modal' }} />
+        <Stack.Screen name="place/edit" options={{ title: 'Modifier le lieu', presentation: 'modal' }} />
         <Stack.Screen name="settings" options={{ title: 'Réglages' }} />
         <Stack.Screen name="calendar" options={{ title: 'Calendrier' }} />
         <Stack.Screen name="scan/identify" options={{ title: 'Identification' }} />

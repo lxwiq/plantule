@@ -13,13 +13,14 @@ import {
   ScreenTitle,
   Text,
 } from '@/components/ui';
-import { useCurrentPlace, usePlants, useRooms, useSettings, useTasks } from '@/db/hooks';
-import type { Task } from '@/db/types';
+import { useCurrentPlace, usePlants, useRooms, useSettings, useTasks, useWeather } from '@/db/hooks';
+import type { Plant, Room, Task } from '@/db/types';
 import { careActions } from '@/lib/care-actions';
 import { formatLongDate, today } from '@/lib/dates';
 import { plural } from '@/lib/labels';
 import { groupTasks } from '@/lib/tasks';
 import { capitalize } from '@/lib/text';
+import { rainExpected, rainExpectedText, rainWateredText } from '@/lib/weather';
 import {
   notificationPermission,
   requestNotificationPermission,
@@ -49,6 +50,39 @@ function NotificationPrompt() {
       }}>
       Reçois chaque matin la liste des plantes à soigner.
     </Banner>
+  );
+}
+
+/**
+ * What the rain did for the outdoor plants today, and a hint to wait when rain
+ * is on its way while some of them are due.
+ */
+function RainNotices({ placeId, tasks, plants, rooms }: { placeId: string; tasks: Task[]; plants: Plant[]; rooms: Room[] }) {
+  const weather = useWeather(placeId);
+  const day = today();
+  if (!weather) return null;
+
+  const outdoorRooms = new Set(rooms.filter((r) => r.is_outdoor).map((r) => r.id));
+  const outdoorPlants = new Set(plants.filter((p) => p.room_id && outdoorRooms.has(p.room_id)).map((p) => p.id));
+  const waterOutside = tasks.some(
+    (t) => t.kind === 'water' && t.next_due_on <= day && outdoorPlants.has(t.plant_id),
+  );
+  const expected = waterOutside ? rainExpected(weather, day) : null;
+  const watered = weather.watered?.on === day ? weather.watered : null;
+
+  return (
+    <>
+      {watered && (
+        <Banner tone="success" icon={icons.rain}>
+          {rainWateredText(watered.mm, watered.rain_day, watered.plants, day)}
+        </Banner>
+      )}
+      {expected !== null && (
+        <Banner icon={icons.rain} title="Pluie prévue aujourd’hui">
+          {rainExpectedText(expected)}
+        </Banner>
+      )}
+    </>
   );
 }
 
@@ -116,6 +150,7 @@ export default function Today() {
           </View>
 
           <NotificationPrompt />
+          <RainNotices placeId={place.id} tasks={tasks} plants={plants} rooms={rooms} />
 
           {toDo === 0 && (
             <EmptyState

@@ -10,6 +10,7 @@ import { addDays, parseDate, toDateString, today } from '@/lib/dates';
 import { findReference } from '@/lib/plant-reference';
 import { validateDiagnosis, type Diagnosis } from '@/lib/diagnosis';
 import { firstDueOn, nextDueAfterDone, postpone, suggestedInterval } from '@/lib/schedule';
+import { rainByDay, rainWaterings, type RainHour, type RainTask, type RainWatering } from '@/lib/weather';
 
 import { database as db } from './database';
 import { notify } from './live';
@@ -22,6 +23,7 @@ import type {
   EventKind,
   Photo,
   Place,
+  PlaceLocation,
   Plant,
   PlantInput,
   Room,
@@ -31,6 +33,7 @@ import type {
   SpeciesSheetSource,
   Task,
   TaskInput,
+  Weather,
 } from './types';
 
 const now = () => new Date().toISOString();
@@ -42,8 +45,19 @@ export function listPlaces(): Place[] {
   return db().getAllSync<Place>('select * from places order by created_at');
 }
 
+export function getPlace(id: string): Place | null {
+  return db().getFirstSync<Place>('select * from places where id = ?', id);
+}
+
 export function createPlace(name: string): Place {
-  const place: Place = { id: randomUUID(), name: name.trim(), created_at: now() };
+  const place: Place = {
+    id: randomUUID(),
+    name: name.trim(),
+    location_name: null,
+    latitude: null,
+    longitude: null,
+    created_at: now(),
+  };
   db().runSync('insert into places (id, name, created_at) values (?, ?, ?)', place.id, place.name, place.created_at);
   notify('places');
   return place;
@@ -54,6 +68,21 @@ export function renamePlace(id: string, name: string) {
   notify('places');
 }
 
+/** Sets the town of a place, or clears it with null. Its weather is fetched again. */
+export function setPlaceLocation(id: string, location: PlaceLocation | null) {
+  db().withTransactionSync(() => {
+    db().runSync(
+      'update places set location_name = ?, latitude = ?, longitude = ? where id = ?',
+      location?.name.trim() ?? null,
+      location?.latitude ?? null,
+      location?.longitude ?? null,
+      id,
+    );
+    db().runSync('delete from weather where place_id = ?', id);
+  });
+  notify('places', 'weather');
+}
+
 /** Deletes a place with its rooms, plants, tasks, journal, photos, diagnoses and conversations. */
 export function deletePlace(id: string) {
   const files = db().getAllSync<{ uri: string }>(
@@ -62,7 +91,7 @@ export function deletePlace(id: string) {
   );
   db().runSync('delete from places where id = ?', id);
   files.forEach((f) => deletePhotoFile(f.uri));
-  notify('places', 'rooms', 'plants', 'photos', 'tasks', 'events', 'diagnoses', 'chat_messages');
+  notify('places', 'rooms', 'plants', 'photos', 'tasks', 'events', 'diagnoses', 'chat_messages', 'weather');
 }
 
 // Settings
@@ -501,10 +530,16 @@ export function deleteTask(id: string) {
   notify('tasks', 'events');
 }
 
-function logEvent(task: Task, kind: EventKind, occurredAt: string, extra: { days?: number; note?: string | null }) {
+function logEvent(
+  task: Task,
+  kind: EventKind,
+  occurredAt: string,
+  extra: { days?: number; note?: string | null; rainMm?: number },
+) {
   db().runSync(
-    `insert into events (id, plant_id, task_id, kind, task_kind, task_label, occurred_at, postponed_days, note)
-     values (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `insert into events (id, plant_id, task_id, kind, task_kind, task_label, occurred_at, postponed_days, note,
+       rain_mm)
+     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     randomUUID(),
     task.plant_id,
     task.id,
@@ -514,6 +549,7 @@ function logEvent(task: Task, kind: EventKind, occurredAt: string, extra: { days
     occurredAt,
     extra.days ?? null,
     clean(extra.note),
+    extra.rainMm ?? null,
   );
 }
 
@@ -576,6 +612,112 @@ export function markSoilWet(id: string, days: number): Task | null {
   });
   notify('tasks', 'events');
   return getTask(id);
+}
+
+// Weather
+
+type WeatherRow = {
+  place_id: string;
+  fetched_at: string;
+  hours: string;
+  watered_on: string | null;
+  rain_day: string | null;
+  rain_mm: number | null;
+  watered_plants: number | null;
+};
+
+function toWeather(row: WeatherRow | null): Weather | null {
+  if (!row) return null;
+  let hours: RainHour[] = [];
+  try {
+    const parsed: unknown = JSON.parse(row.hours);
+    if (Array.isArray(parsed)) hours = parsed as RainHour[];
+  } catch {
+    // A broken cache is no rain known: it is fetched again soon.
+  }
+  const { watered_on, rain_day, rain_mm, watered_plants } = row;
+  return {
+    place_id: row.place_id,
+    fetched_at: row.fetched_at,
+    hours,
+    watered:
+      watered_on && rain_day && rain_mm !== null && watered_plants !== null
+        ? { on: watered_on, rain_day, mm: rain_mm, plants: watered_plants }
+        : null,
+  };
+}
+
+/** The rain around a place, as last fetched. */
+export function getWeather(placeId: string): Weather | null {
+  return toWeather(db().getFirstSync<WeatherRow>('select * from weather where place_id = ?', placeId));
+}
+
+/** Keeps a new forecast of a place; what the rain last watered stays. */
+export function saveWeather(placeId: string, fetchedAt: string, hours: RainHour[]) {
+  db().runSync(
+    `insert into weather (place_id, fetched_at, hours) values (?, ?, ?)
+     on conflict (place_id) do update set fetched_at = excluded.fetched_at, hours = excluded.hours`,
+    placeId,
+    fetchedAt,
+    JSON.stringify(hours),
+  );
+  notify('weather');
+}
+
+/**
+ * Lets the rain water the outdoor plants of a place (the rule is in
+ * src/lib/weather.ts): each watering goes in the journal, dated on the rain
+ * day, and the task starts again from that day. Returns what was watered.
+ */
+export function waterWithRain(placeId: string): RainWatering[] {
+  const weather = getWeather(placeId);
+  if (!weather) return [];
+  const rain = rainByDay(weather.hours, Date.parse(weather.fetched_at));
+  const rows = db().getAllSync<TaskRow & { outdoor: number }>(
+    `select t.*, coalesce(r.is_outdoor, 0) as outdoor
+     from tasks t join plants p on p.id = t.plant_id left join rooms r on r.id = p.room_id
+     where p.place_id = ? and t.kind = 'water'`,
+    placeId,
+  );
+  const tasks = new Map(rows.map(({ outdoor, ...row }) => [row.id, { ...toTask(row), outdoor: outdoor === 1 }]));
+  const day = today();
+  const waterings = rainWaterings([...tasks.values()] satisfies RainTask[], rain, day);
+  if (waterings.length === 0) return [];
+
+  const at = now();
+  const latest = waterings.reduce((a, b) => (b.day > a.day ? b : a));
+  const plants = new Set(waterings.map((w) => w.plantId)).size;
+  db().withTransactionSync(() => {
+    for (const watering of waterings) {
+      const task = tasks.get(watering.taskId)!;
+      const doneOn = doneAt(watering.day, at);
+      logEvent(task, 'done', doneOn, { rainMm: watering.mm });
+      db().runSync(
+        `update tasks set last_done_at = ?, next_due_on = ?, wet_streak = 0, wet_days = 0, updated_at = ?
+         where id = ?`,
+        doneOn,
+        watering.nextDueOn,
+        at,
+        task.id,
+      );
+    }
+    // Shown on the Today screen that day; a second rain the same day adds its plants.
+    db().runSync(
+      `update weather set rain_day = ?, rain_mm = ?,
+         watered_plants = case when watered_on = ? then coalesce(watered_plants, 0) + ? else ? end,
+         watered_on = ?
+       where place_id = ?`,
+      latest.day,
+      latest.mm,
+      day,
+      plants,
+      plants,
+      day,
+      placeId,
+    );
+  });
+  notify('tasks', 'events', 'weather');
+  return waterings;
 }
 
 // Journal

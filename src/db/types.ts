@@ -2,6 +2,7 @@
 
 import type { CareSheet } from '@/lib/care-sheet';
 import type { Diagnosis, DiagnosisStatus } from '@/lib/diagnosis';
+import type { RainHour } from '@/lib/weather';
 
 export type Light = 'full_sun' | 'bright_indirect' | 'partial_shade' | 'shade';
 
@@ -21,7 +22,28 @@ export type EventKind = 'done' | 'snoozed' | 'soil_wet';
 export type Place = {
   id: string;
   name: string;
+  /** The town it is in, for the rain on its outdoor plants; null when not set. */
+  location_name: string | null;
+  latitude: number | null;
+  longitude: number | null;
   created_at: string;
+};
+
+/** Where a place is, for the weather. */
+export type PlaceLocation = { name: string; latitude: number; longitude: number };
+
+/**
+ * The rain around a place, from Open-Meteo, and the last time it watered the
+ * outdoor plants. A cache, fetched again when missing: not in backups.
+ */
+export type Weather = {
+  place_id: string;
+  /** ISO instant of the forecast: hours ending later were still to come. */
+  fetched_at: string;
+  /** Hours with rain, over the past days and the next two. */
+  hours: RainHour[];
+  /** `on` the day it was noticed, `rain_day` the day it rained. */
+  watered: { on: string; rain_day: string; mm: number; plants: number } | null;
 };
 
 export type Room = {
@@ -111,6 +133,8 @@ export type CareEvent = {
   occurred_at: string;
   postponed_days: number | null;
   note: string | null;
+  /** Set when the rain did it (kind "done"), in mm. */
+  rain_mm: number | null;
 };
 
 /** A health check of a plant from a photo, kept to follow how it does. */

@@ -90,3 +90,8 @@ export function useDiagnosis(diagnosisId: string) {
 export function useChatMessages(plantId: string) {
   return useLiveQuery(`chat_messages:${plantId}`, ['chat_messages'], () => repo.listChatMessages(plantId));
 }
+
+/** The rain around a place, as last fetched, and what it last watered. */
+export function useWeather(placeId: string) {
+  return useLiveQuery(`weather:${placeId}`, ['weather'], () => repo.getWeather(placeId));
+}

@@ -19,7 +19,8 @@ export const BACKUP_MIME_TYPE = 'application/zip';
 /**
  * Every table, parents first: rows are inserted in this order and deleted in
  * the reverse one. A new table goes here; new columns need nothing, as
- * columns are never listed.
+ * columns are never listed. Only `weather` stays out: a cache, fetched again,
+ * and deleted with the places it belongs to.
  */
 export const BACKUP_TABLES = [
   'places',
