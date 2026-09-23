@@ -20,6 +20,8 @@ const ACCENT_VARIANTS: [name: string, spec: ArtSpec][] = [
   ['lavender-pink', { kind: 'lavender', accent: '#E79AC0' }],
   ['tree-orange', { kind: 'tree', accent: '#FFA02E' }],
   ['tree-olive', { kind: 'tree', accent: '#5E5A3A' }],
+  ['tree-laurel', { kind: 'tree', accent: '#3E3346' }],
+  ['tree-box', { kind: 'tree', accent: '#5FA86A' }],
   ['veggie-yellow', { kind: 'veggie', accent: '#FFC23D' }],
 ];
 

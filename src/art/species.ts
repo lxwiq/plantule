@@ -40,6 +40,10 @@ const FRUIT = {
   lemon: '#F5D535',
   orange: '#F3962B',
   olive: '#5B4B57',
+  /** Bay laurel's black berries. */
+  laurel: '#3E3346',
+  /** Box has no fruit worth showing: dots in the crown's own green. */
+  none: '#5FA86A',
 } as const;
 
 /** The drawing of every plant of the reference base, by id. */
@@ -169,7 +173,7 @@ export const REFERENCE_ART: Readonly<Record<string, ArtSpec>> = {
   'plumbago-auriculata': { kind: 'flowers', accent: BLOOM.sky },
   'trachelospermum-jasminoides': { kind: 'flowers', accent: BLOOM.white },
   'hydrangea-macrophylla': { kind: 'flowers', accent: BLOOM.blue },
-  'buxus-sempervirens': { kind: 'tree' },
+  'buxus-sempervirens': { kind: 'tree', accent: FRUIT.none },
   'camellia-japonica': { kind: 'flowers', accent: BLOOM.rose },
   'calluna-vulgaris': { kind: 'lavender', accent: BLOOM.mauve },
   'lavandula-angustifolia': { kind: 'lavender', accent: BLOOM.purple },
@@ -199,7 +203,7 @@ export const REFERENCE_ART: Readonly<Record<string, ArtSpec>> = {
   'fragaria-ananassa': { kind: 'veggie', accent: FRUIT.strawberry },
   'solanum-lycopersicum': { kind: 'veggie', accent: FRUIT.tomato },
   'capsicum-annuum': { kind: 'veggie', accent: FRUIT.pepper },
-  'laurus-nobilis': { kind: 'tree' },
+  'laurus-nobilis': { kind: 'tree', accent: FRUIT.laurel },
 
   // Herbs
   'ocimum-basilicum': { kind: 'herbs' },
