@@ -2,6 +2,9 @@ name: Android
 
 # main  -> rolling "preview" pre-release with an arm64 APK (stable download URL)
 # v*    -> versioned release with a universal APK + AAB for Google Play
+# Each APK comes with update.json, which the app reads to update itself
+# (src/lib/app-update.ts): preview builds follow the preview release, tag builds
+# the latest versioned one. The AAB never updates itself (Google Play policy).
 on:
   push:
     branches: [main]
@@ -24,6 +27,9 @@ jobs:
       IS_RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Full history and tags: the update notes list the commits since the previous build.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v7
         with:
@@ -82,9 +88,15 @@ jobs:
           ORG_GRADLE_PROJECT_PLANTULE_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ORG_GRADLE_PROJECT_PLANTULE_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ORG_GRADLE_PROJECT_PLANTULE_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          # Inlined in the JS bundle by the Gradle build: the update channel the APK follows.
+          EXPO_PUBLIC_UPDATE_CHANNEL: ${{ startsWith(github.ref, 'refs/tags/v') && 'stable' || 'preview' }}
         run: |
           if [ "$IS_RELEASE" = "true" ]; then
-            ./gradlew app:assembleRelease app:bundleRelease
+            ./gradlew app:assembleRelease
+            # Google Play forbids apps that update themselves: the AAB has no update
+            # channel and no REQUEST_INSTALL_PACKAGES (plugins/with-app-updater.js).
+            # Only the JS bundle and the manifest are built again.
+            EXPO_PUBLIC_UPDATE_CHANNEL= ./gradlew app:bundleRelease -PplantulePlayBuild=true
           else
             ./gradlew app:assembleRelease -PreactNativeArchitectures=arm64-v8a
           fi
@@ -95,8 +107,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp android/app/build/outputs/apk/release/app-release.apk plantule-preview.apk
+          CHANNEL=preview APK=plantule-preview.apk \
+            APK_URL="https://github.com/$GITHUB_REPOSITORY/releases/download/preview/plantule-preview.apk" \
+            node scripts/update-manifest.js > update.json
           gh release delete preview --cleanup-tag --yes || true
-          gh release create preview plantule-preview.apk \
+          gh release create preview plantule-preview.apk update.json \
             --prerelease \
             --target "$GITHUB_SHA" \
             --title "Preview (main)" \
@@ -109,8 +124,12 @@ jobs:
         run: |
           cp android/app/build/outputs/apk/release/app-release.apk "plantule-$GITHUB_REF_NAME.apk"
           cp android/app/build/outputs/bundle/release/app-release.aab "plantule-$GITHUB_REF_NAME.aab"
+          CHANNEL=stable APK="plantule-$GITHUB_REF_NAME.apk" \
+            APK_URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/plantule-$GITHUB_REF_NAME.apk" \
+            node scripts/update-manifest.js > update.json
           gh release create "$GITHUB_REF_NAME" \
             "plantule-$GITHUB_REF_NAME.apk" \
             "plantule-$GITHUB_REF_NAME.aab" \
+            update.json \
             --title "$GITHUB_REF_NAME" \
             --generate-notes

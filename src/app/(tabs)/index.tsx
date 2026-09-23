@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 
+import { UpdateBanner } from '@/components/app-update';
 import { TaskRow } from '@/components/task-row';
 import {
   Banner,
@@ -137,6 +138,8 @@ export default function Today() {
           </>
         }
       />
+
+      <UpdateBanner />
 
       {plants.length === 0 ? (
         <EmptyState

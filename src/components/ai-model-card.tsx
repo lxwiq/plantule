@@ -1,25 +1,11 @@
-import * as Network from 'expo-network';
 import { useState } from 'react';
 import { Alert, View } from 'react-native';
 
 import { ai, useModelStatus, type ModelStatus } from '@/ai';
 import { formatBytes } from '@/ai/model-format';
-import { Banner, Button, Icon, icons, Text } from '@/components/ui';
+import { Banner, Button, Icon, icons, ProgressBar, Text } from '@/components/ui';
+import { onUnmeteredNetwork } from '@/lib/network';
 import { radius, spacing, useTheme } from '@/theme';
-
-/** On Wi-Fi, or when the network cannot be read: download without asking. */
-async function onUnmeteredNetwork() {
-  try {
-    const state = await Network.getNetworkStateAsync();
-    return (
-      state.type === Network.NetworkStateType.WIFI ||
-      state.type === Network.NetworkStateType.ETHERNET ||
-      state.isConnected === false // The engine reports the missing connection itself.
-    );
-  } catch {
-    return true;
-  }
-}
 
 function sizeText(bytes: number) {
   return bytes > 0 ? formatBytes(bytes) : null;
@@ -38,32 +24,6 @@ function describe(status: ModelStatus, size: string | null): string {
     case 'unsupported':
       return status.reason;
   }
-}
-
-function ProgressBar({ progress }: { progress: number }) {
-  const theme = useTheme();
-  const percent = Math.round(progress * 100);
-  return (
-    <View
-      accessibilityRole="progressbar"
-      accessibilityLabel="Téléchargement du modèle"
-      accessibilityValue={{ min: 0, max: 100, now: percent }}
-      style={{
-        height: 6,
-        borderRadius: radius.full,
-        backgroundColor: theme.surfaceContainerHighest,
-        overflow: 'hidden',
-      }}>
-      <View
-        style={{
-          width: `${Math.max(progress * 100, 1)}%`,
-          height: '100%',
-          borderRadius: radius.full,
-          backgroundColor: theme.primary,
-        }}
-      />
-    </View>
-  );
 }
 
 type ModelCardProps = {
@@ -180,7 +140,7 @@ export function ModelCard({ unsupportedTitle = 'Scan indisponible' }: ModelCardP
 
       {status.state === 'downloading' && (
         <View style={{ gap: spacing.sm }}>
-          <ProgressBar progress={status.progress} />
+          <ProgressBar progress={status.progress} label="Téléchargement du modèle" />
           <Text variant="caption" tone="secondary" style={{ fontVariant: ['tabular-nums'] }}>
             {`${Math.floor(status.progress * 100)} %`}
             {size ? ` · ${formatBytes(status.progress * bytes)} sur ${size}` : ''}

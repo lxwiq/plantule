@@ -10,6 +10,7 @@ import { useCurrentPlace, usePlants, useSettings, useTasks } from '@/db/hooks';
 import { ensurePlace } from '@/db/repo';
 import { syncDailySummary } from '@/notifications/daily-summary';
 import { palettes, typography, useScheme, useTheme } from '@/theme';
+import { useUpdateChecks } from '@/updates/store';
 import { useWeatherRefresh } from '@/weather/sync';
 
 void SplashScreen.preventAutoHideAsync();
@@ -61,6 +62,12 @@ function WeatherSync() {
   return null;
 }
 
+/** Looks for a newer build of the app on GitHub when it opens or comes back. */
+function UpdateCheck() {
+  useUpdateChecks();
+  return null;
+}
+
 export default function RootLayout() {
   // The app renders once the database is open and migrated.
   return (
@@ -88,6 +95,7 @@ function App() {
       <StatusBar style="auto" />
       <DailySummarySync />
       <WeatherSync />
+      <UpdateCheck />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: theme.background },
