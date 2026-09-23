@@ -71,6 +71,7 @@ const DEFAULT_SETTINGS: Settings = {
   current_place_id: null,
   daily_summary_enabled: true,
   daily_summary_time: '08:00',
+  last_backup_at: null,
 };
 
 export function getSettings(): Settings {

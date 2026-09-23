@@ -1,12 +1,14 @@
 import { Directory, File, Paths } from 'expo-file-system';
 
-const photosDir = () => new Directory(Paths.document, 'photos');
+export const photosDirectory = () => new Directory(Paths.document, 'photos');
+
+/** Where the photo with this id is kept. */
+export const photoFile = (photoId: string) => new File(photosDirectory(), `${photoId}.jpg`);
 
 /** Copies a picked photo into the app's storage and returns its permanent URI. */
 export async function storePhotoFile(sourceUri: string, photoId: string): Promise<string> {
-  const dir = photosDir();
-  dir.create({ idempotent: true, intermediates: true });
-  const target = new File(dir, `${photoId}.jpg`);
+  photosDirectory().create({ idempotent: true, intermediates: true });
+  const target = photoFile(photoId);
   await new File(sourceUri).copy(target);
   return target.uri;
 }

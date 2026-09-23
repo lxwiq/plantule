@@ -139,6 +139,8 @@ export type Settings = {
   daily_summary_enabled: boolean;
   /** "HH:MM" */
   daily_summary_time: string;
+  /** ISO instant of the last backup file made, or imported, on this phone. */
+  last_backup_at: string | null;
 };
 
 export type RoomInput = { name: string; light: Light | null; is_outdoor: boolean };

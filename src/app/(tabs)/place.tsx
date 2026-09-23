@@ -96,7 +96,7 @@ export default function PlaceScreen() {
         <ListRow
           leading={icons.settings}
           title="Réglages"
-          subtitle="Résumé quotidien"
+          subtitle="Résumé quotidien, sauvegarde"
           onPress={() => router.push('/settings')}
           chevron
         />

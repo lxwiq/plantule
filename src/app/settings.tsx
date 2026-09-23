@@ -1,14 +1,26 @@
 import { DateTimePicker } from '@expo/ui/community/datetime-picker';
 import Constants from 'expo-constants';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Linking } from 'react-native';
+import { ActivityIndicator, Alert, Linking } from 'react-native';
 
 import { ai } from '@/ai';
 import { formatBytes } from '@/ai/model-format';
 import { ModelCard } from '@/components/ai-model-card';
 import { Banner, icons, ListRow, ListSection, Screen, SwitchRow, Text } from '@/components/ui';
+import {
+  BackupError,
+  backupAvailable,
+  exportBackup,
+  pickBackupFile,
+  readBackup,
+  restoreBackup,
+  type PickedBackup,
+} from '@/db/backup';
 import { useSettings } from '@/db/hooks';
 import { updateSettings } from '@/db/repo';
+import { describeBackup, formatLastBackup } from '@/lib/backup';
+import { plural } from '@/lib/labels';
 import {
   notificationPermission,
   requestNotificationPermission,
@@ -29,6 +41,115 @@ function dateToTime(date: Date) {
 function scanFooter() {
   const size = ai.info.sizeBytes > 0 ? ` Il pèse ${formatBytes(ai.info.sizeBytes)}, à télécharger une seule fois.` : '';
   return `Le modèle d’IA tourne sur ton téléphone : tes photos ne sont envoyées nulle part.${size}`;
+}
+
+const BACKUP_FOOTER =
+  'Un fichier avec tes lieux, plantes, soins, journal, photos et fiches. Garde-le sur ton Drive ou envoie-le sur ton nouveau téléphone.';
+
+/** Export everything to a file, or replace everything with a backup file. */
+function BackupSection() {
+  const theme = useTheme();
+  const settings = useSettings();
+  const [busy, setBusy] = useState<'export' | 'read' | 'import' | null>(null);
+
+  if (!backupAvailable) {
+    return (
+      <ListSection title="Sauvegarde" footer="La sauvegarde se fait depuis l’app sur le téléphone.">
+        {null}
+      </ListSection>
+    );
+  }
+
+  const exportData = async () => {
+    setBusy('export');
+    try {
+      await exportBackup();
+    } catch {
+      Alert.alert(
+        'Export impossible',
+        'Le fichier de sauvegarde n’a pas pu être créé. Vérifie la place libre sur le téléphone, puis réessaie.',
+      );
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const restore = async (picked: PickedBackup) => {
+    setBusy('import');
+    try {
+      await restoreBackup(picked);
+    } catch {
+      setBusy(null);
+      Alert.alert('Import impossible', 'La sauvegarde n’a pas pu être importée. Rien n’a changé sur ce téléphone.');
+      return;
+    }
+    setBusy(null);
+    router.dismissTo('/');
+    const { places, plants, photos } = picked.summary;
+    Alert.alert(
+      'Sauvegarde importée',
+      `${plural(places, 'lieu', 'lieux')}, ${plural(plants, 'plante')} et ${plural(photos, 'photo')} sont maintenant sur ce téléphone.`,
+    );
+  };
+
+  const importData = async () => {
+    const file = await pickBackupFile();
+    if (!file) return;
+    setBusy('read');
+    let picked: PickedBackup;
+    try {
+      picked = await readBackup(file);
+    } catch (error) {
+      Alert.alert(
+        'Import impossible',
+        error instanceof BackupError ? error.message : 'Le fichier n’a pas pu être lu. Réessaie.',
+      );
+      return;
+    } finally {
+      setBusy(null);
+    }
+    Alert.alert(
+      'Remplacer les données de ce téléphone ?',
+      `${describeBackup(picked.summary)}\n\nTout ce qui est sur ce téléphone (lieux, plantes, soins, journal, photos et réglages) sera remplacé par la sauvegarde. C’est définitif.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Remplacer', style: 'destructive', onPress: () => void restore(picked) },
+      ],
+    );
+  };
+
+  const spinner = <ActivityIndicator color={theme.primary} />;
+  const importing = busy === 'read' || busy === 'import';
+  return (
+    <ListSection title="Sauvegarde" footer={BACKUP_FOOTER}>
+      <ListRow
+        leading={icons.share}
+        title="Exporter mes données"
+        subtitle={
+          busy === 'export'
+            ? 'Préparation du fichier…'
+            : `Dernière sauvegarde : ${formatLastBackup(settings.last_backup_at)}`
+        }
+        trailing={busy === 'export' ? spinner : undefined}
+        onPress={busy === 'export' ? undefined : () => void exportData()}
+        disabled={importing}
+      />
+      <ListRow
+        leading={icons.restore}
+        title="Importer une sauvegarde"
+        subtitle={
+          busy === 'read'
+            ? 'Lecture du fichier…'
+            : busy === 'import'
+              ? 'Import en cours…'
+              : 'Remplace les données de ce téléphone'
+        }
+        trailing={importing ? spinner : undefined}
+        onPress={importing ? undefined : () => void importData()}
+        disabled={busy === 'export'}
+      />
+    </ListSection>
+  );
 }
 
 export default function Settings() {
@@ -107,9 +228,11 @@ export default function Settings() {
         <ModelCard />
       </ListSection>
 
+      <BackupSection />
+
       <Banner icon={icons.info} title="Tes données restent sur ce téléphone">
-        Plantes, soins, journal et photos sont enregistrés uniquement ici. Désinstaller l’app les
-        efface.
+        Plantes, soins, journal et photos sont enregistrés uniquement ici. Désinstaller l’app ou
+        changer de téléphone les efface : exporte une sauvegarde pour les garder.
       </Banner>
 
       <Text variant="caption" tone="tertiary" selectable style={{ textAlign: 'center' }}>
