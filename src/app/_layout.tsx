@@ -95,6 +95,19 @@ function App() {
         <Stack.Screen name="plant/[id]/edit" options={{ title: 'Modifier la plante', presentation: 'modal' }} />
         <Stack.Screen name="plant/[id]/diagnose" options={{ title: 'Diagnostic' }} />
         <Stack.Screen name="plant/[id]/ask" options={{ title: 'Demande à Plantule' }} />
+        <Stack.Screen name="plant/[id]/photos" options={{ title: 'Photos' }} />
+        <Stack.Screen
+          name="plant/[id]/photo/[photoId]"
+          options={{
+            // Photos are shown on a dark background, whatever the phone's theme.
+            title: '',
+            animation: 'fade',
+            headerStyle: { backgroundColor: palettes.dark.background },
+            headerTintColor: palettes.dark.text,
+            headerTitleStyle: { ...typography.heading, color: palettes.dark.text },
+            contentStyle: { backgroundColor: palettes.dark.background },
+          }}
+        />
         <Stack.Screen name="diagnosis/[id]" options={{ title: 'Diagnostic' }} />
         <Stack.Screen name="task/new" options={{ title: 'Nouvelle tâche', presentation: 'modal' }} />
         <Stack.Screen
@@ -112,6 +125,7 @@ function App() {
         <Stack.Screen name="place/new" options={{ title: 'Nouveau lieu', presentation: 'modal' }} />
         <Stack.Screen name="place/edit" options={{ title: 'Renommer le lieu', presentation: 'modal' }} />
         <Stack.Screen name="settings" options={{ title: 'Réglages' }} />
+        <Stack.Screen name="calendar" options={{ title: 'Calendrier' }} />
         <Stack.Screen name="scan/identify" options={{ title: 'Identification' }} />
         <Stack.Screen name="scan/sheet" options={{ title: 'Fiche espèce' }} />
       </Stack>

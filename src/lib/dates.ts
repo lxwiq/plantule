@@ -63,6 +63,36 @@ export function formatShortDate(value: string): string {
   return `${dayOfMonth(date)} ${MONTHS[date.getMonth()]}${withYear ? ` ${date.getFullYear()}` : ''}`;
 }
 
+/** "12 septembre", always without the year. */
+export function formatDayMonth(value: string): string {
+  const date = parseDate(value);
+  return `${dayOfMonth(date)} ${MONTHS[date.getMonth()]}`;
+}
+
+/** "septembre 2026": the month of a date. */
+export function formatMonth(value: string): string {
+  const date = parseDate(value);
+  return `${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+/** "3 jours", "2 semaines", "8 mois", "1 an et 2 mois": the time between two days, in whole units. */
+export function formatElapsed(from: string, to: string): string {
+  const [start, end] = (from <= to ? [from, to] : [to, from]).map(parseDate);
+  let months = (end.getFullYear() - start.getFullYear()) * 12 + end.getMonth() - start.getMonth();
+  if (end.getDate() < start.getDate()) months -= 1;
+  if (months >= 12) {
+    const years = Math.floor(months / 12);
+    const rest = months % 12;
+    const text = years === 1 ? '1 an' : `${years} ans`;
+    return rest > 0 ? `${text} et ${rest} mois` : text;
+  }
+  if (months >= 1) return `${months} mois`;
+  const days = Math.abs(daysBetween(from, to));
+  const weeks = Math.floor(days / 7);
+  if (weeks >= 1) return weeks === 1 ? '1 semaine' : `${weeks} semaines`;
+  return days === 1 ? '1 jour' : `${days} jours`;
+}
+
 /** "aujourd’hui", "demain", "dans 3 jours", "en retard de 2 jours"... */
 export function formatDue(dueOn: string, reference = today()): string {
   const days = daysBetween(reference, dueOn);
@@ -85,11 +115,17 @@ export function formatRelativeDay(value: string, reference = today()): string {
   return `le ${formatShortDate(value)}`;
 }
 
+/** "9:30": the local time of an instant. */
+export function formatTime(iso: string): string {
+  const date = new Date(iso);
+  return `${date.getHours()}:${pad(date.getMinutes())}`;
+}
+
 /** "à l’instant", "il y a 5 min", "hier à 9:30", "le 3 mars"... */
 export function formatRelativeTime(iso: string, now = new Date()): string {
   const date = new Date(iso);
   const minutes = Math.round((now.getTime() - date.getTime()) / 60_000);
-  const time = `${date.getHours()}:${pad(date.getMinutes())}`;
+  const time = formatTime(iso);
   if (minutes < 1) return 'à l’instant';
   if (minutes < 60) return `il y a ${minutes} min`;
   const days = daysBetween(toDateString(date), toDateString(now));

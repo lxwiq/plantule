@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
 
 import { useModelStatus } from '@/ai';
@@ -32,19 +32,16 @@ import {
   useSpeciesSheetMatch,
   useTasks,
 } from '@/db/hooks';
-import { addPhoto, deletePhoto, deletePlant, setMainPhoto, setPlantSpeciesSheet } from '@/db/repo';
-import type { Photo, Plant } from '@/db/types';
+import { deletePlant, setPlantSpeciesSheet } from '@/db/repo';
+import type { Plant } from '@/db/types';
+import { useAddPhoto } from '@/hooks/use-add-photo';
 import { careActions } from '@/lib/care-actions';
 import { isSheetComplete } from '@/lib/care-sheet';
 import { formatShortDate } from '@/lib/dates';
 import { closeScreen } from '@/lib/navigation';
-import { choosePhotoSource, pickPhoto } from '@/lib/pick-photo';
+import { photoDay } from '@/lib/photos';
 import { byDueDate } from '@/lib/tasks';
 import { radius, spacing, useTheme } from '@/theme';
-
-function errorText(error: unknown) {
-  return error instanceof Error ? error.message : 'Une erreur est survenue.';
-}
 
 export default function PlantScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -69,8 +66,8 @@ function PlantDetails({ plant }: { plant: Plant }) {
   const tasks = useTasks(plant.place_id);
   const events = usePlantEvents(plant.id);
   const photos = usePhotos(plant.id);
-  const diagnoses = useDiagnoses(plant.id);
-  const [savingPhoto, setSavingPhoto] = useState(false);
+  const { saving: savingPhoto, add: choosePhoto } = useAddPhoto(plant.id);
+  const mainPhotoId = plant.main_photo_id;
 
   const room = rooms.find((r) => r.id === plant.room_id);
   const plantTasks = useMemo(
@@ -78,28 +75,8 @@ function PlantDetails({ plant }: { plant: Plant }) {
     [tasks, plant.id],
   );
 
-  const choosePhoto = () =>
-    choosePhotoSource((source) => {
-      pickPhoto(source)
-        .then(async (uri) => {
-          if (!uri) return;
-          setSavingPhoto(true);
-          await addPhoto(plant.id, uri);
-        })
-        .catch((e) => Alert.alert('Photo', errorText(e)))
-        .finally(() => setSavingPhoto(false));
-    });
-
-  const managePhoto = (photo: Photo) => {
-    const isMain = photo.id === plant.main_photo_id;
-    const inDiagnosis = diagnoses.some((d) => d.photo_id === photo.id);
-    const message = inDiagnosis ? 'Elle illustre un diagnostic, qui restera sans photo si tu la supprimes.' : undefined;
-    Alert.alert('Photo', message, [
-      { text: 'Annuler', style: 'cancel' },
-      ...(isMain ? [] : [{ text: 'Photo principale', onPress: () => setMainPhoto(plant.id, photo.id) }]),
-      { text: 'Supprimer', style: 'destructive' as const, onPress: () => deletePhoto(photo) },
-    ]);
-  };
+  const openPhoto = (photoId: string) =>
+    router.push({ pathname: '/plant/[id]/photo/[photoId]', params: { id: plant.id, photoId } });
 
   const confirmDelete = () =>
     Alert.alert(
@@ -139,19 +116,24 @@ function PlantDetails({ plant }: { plant: Plant }) {
         }}
       />
       <Screen>
-        {plant.main_photo_uri ? (
-          <Image
-            source={{ uri: plant.main_photo_uri }}
-            contentFit="cover"
-            transition={200}
+        {plant.main_photo_uri && mainPhotoId ? (
+          <Pressable
+            accessibilityRole="button"
             accessibilityLabel={`Photo de ${plant.nickname}`}
-            style={{
-              width: '100%',
-              aspectRatio: 4 / 3,
-              borderRadius: radius.xl,
-              backgroundColor: theme.surfaceContainerHigh,
-            }}
-          />
+            accessibilityHint="Ouvre la photo en grand"
+            onPress={() => openPhoto(mainPhotoId)}>
+            <Image
+              source={{ uri: plant.main_photo_uri }}
+              contentFit="cover"
+              transition={200}
+              style={{
+                width: '100%',
+                aspectRatio: 4 / 3,
+                borderRadius: radius.xl,
+                backgroundColor: theme.surfaceContainerHigh,
+              }}
+            />
+          </Pressable>
         ) : (
           <Pressable
             accessibilityRole="button"
@@ -237,14 +219,24 @@ function PlantDetails({ plant }: { plant: Plant }) {
             <Text variant="overline" tone="secondary" accessibilityRole="header">
               Photos
             </Text>
-            <Button
-              title="Ajouter"
-              icon={icons.camera}
-              variant="text"
-              size="sm"
-              loading={savingPhoto}
-              onPress={choosePhoto}
-            />
+            <View style={{ flexDirection: 'row' }}>
+              {photos.length > 0 && (
+                <Button
+                  title="Tout voir"
+                  variant="text"
+                  size="sm"
+                  onPress={() => router.push({ pathname: '/plant/[id]/photos', params: { id: plant.id } })}
+                />
+              )}
+              <Button
+                title="Ajouter"
+                icon={icons.camera}
+                variant="text"
+                size="sm"
+                loading={savingPhoto}
+                onPress={choosePhoto}
+              />
+            </View>
           </View>
           {photos.length > 0 ? (
             <ScrollView
@@ -255,8 +247,9 @@ function PlantDetails({ plant }: { plant: Plant }) {
                 <Pressable
                   key={photo.id}
                   accessibilityRole="button"
-                  accessibilityLabel={`Photo du ${formatShortDate(photo.created_at.slice(0, 10))}`}
-                  onPress={() => managePhoto(photo)}>
+                  accessibilityLabel={`Photo du ${formatShortDate(photoDay(photo))}`}
+                  accessibilityHint="Ouvre la photo en grand"
+                  onPress={() => openPhoto(photo.id)}>
                   <Image
                     source={{ uri: photo.uri }}
                     contentFit="cover"

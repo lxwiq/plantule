@@ -74,6 +74,10 @@ export type Photo = {
   id: string;
   plant_id: string;
   uri: string;
+  /** When it was taken (from the gallery photo, or set by hand); when it was added if unknown. */
+  taken_at: string;
+  /** The diagnosis it illustrates, joined from diagnoses: a close-up, not a portrait. */
+  diagnosis_id: string | null;
   created_at: string;
 };
 
