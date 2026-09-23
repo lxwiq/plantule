@@ -188,6 +188,22 @@ Onglets : **Aujourd'hui · Plantes · Scan · Maison**. L'onglet Plantes a trois
 - les mises à jour : le bandeau après un nouveau push (ou « Rechercher une mise à jour »), la progression et « Annuler », l'autorisation « Installer des applis inconnues » la première fois, puis l'installation, avec les données intactes ; rien ne doit s'afficher hors ligne ni pendant la minute où la release `preview` est recréée ; le message sur données mobiles ; au premier tag `v*`, l'APK en canal Stable et l'AAB sans la permission ;
 - le défilement des puces « Plante mère » avec beaucoup de plantes, et le retour arrière après « Je l'ai ! » et « En faire une plante ».
 
+**Lot livré le 23/09/2026 : Pépin et les illustrations**
+
+- [x] **Un dessin pour chaque plante**, dans le style du logo : 26 familles (monstera, pothos, sansevieria, fougère, cactus, orchidée, fleurs, citronnier, tomate…) couvrent les 170 plantes de la base de référence, avec la couleur de leurs fleurs ou de leurs fruits. Une espèce hors de la base est reconnue par son genre ou par un mot (« cactus », « basilic »…), sinon c'est la pousse du logo. Le dessin remplace la photo tant qu'il n'y en a pas : liste des plantes, soins, page de la plante, calendrier, boutures, envies, résultats du scan
+- [x] **Le visage du pot suit la plante** : assoiffé quand un arrosage est en retard, inquiet après un diagnostic « à soigner » de moins de 30 jours, ravi quand un soin a été fait aujourd'hui, content sinon
+- [x] **Pépin, la mascotte** : le pot du logo, qui accueille sur Aujourd'hui avec un mot selon l'heure et les soins du jour (« 2 plantes ont soif, on s'en occupe ? »). Il respire doucement (sauf si les animations sont réduites) et ouvre son vestiaire au toucher
+- [x] **Le vestiaire de Pépin** (Maison, ou en touchant Pépin) : son nom, la plante qui pousse dans son pot (une des 26 familles), 10 couleurs de pot et 35 habits et accessoires : motifs (pull tricoté, vichy, marinière…), chapeaux (bonnet à pompon, chapeau de paille…), lunettes, écharpe ou col, et un objet à tenir (tasse de thé, arrosoir, livre…). « Au hasard » et « Tenue d'origine ». La tenue est dans la sauvegarde
+- [x] **Scènes cocooning** avec Pépin dans sa tenue, pour les moments calmes : rien à faire aujourd'hui (endormi sous un plaid avec un chocolat chaud), pas encore de plante, pas de rappel, pas de bouture, liste d'envies vide, conversation vide, scan, plante introuvable
+- [x] Les dessins sont du SVG construit par du code (`src/art`), affiché avec `react-native-svg`. `node scripts/art-preview.mjs` en fait une planche PNG pour les regarder
+
+**À vérifier sur le téléphone** (essayé dans le navigateur, sans plante à cause du bug d'expo-sqlite sur le web) :
+
+- les dessins sur Android : dégradés (surtout ceux qui suivent une feuille : succulente, broméliacée, fleur de lune), motifs du pot découpés à sa forme ;
+- la fluidité de la liste des plantes et du vestiaire avec beaucoup de dessins ;
+- la respiration de Pépin, la vibration au toucher, et l'option « Supprimer les animations » d'Android ;
+- les visages assoiffé et inquiet sur de vraies plantes, et les couleurs de fleurs de quelques espèces.
+
 ## Risques et points ouverts
 
 - **Données seulement sur le téléphone** : perdre ou changer de téléphone, ou désinstaller l'app, efface tout. La sauvegarde par fichier existe depuis la phase 3, mais elle est manuelle : sans export récent, un téléphone perdu emporte tout. La date de la dernière sauvegarde est affichée dans Réglages.

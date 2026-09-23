@@ -51,6 +51,17 @@ Plantule runs **Gemma 4 E2B** locally with Google's LiteRT-LM. The model is down
 - **Placement help**: the light the plant likes and which of your rooms offer it.
 - **Reference base of 170 common plants**: names checked against Wikidata and pet toxicity from the ASPCA lists, so the AI doesn't make up the numbers.
 
+### Pépin, and a drawing for every plant
+<p align="center"><img src="docs/plants.png" width="720" alt="The 26 plant families, each in a smiling terracotta pot"></p>
+
+- **Every plant gets a drawing** in the logo's style until it has a photo: 26 families (monstera, pothos, cactus, orchid, lemon tree, tomato…) cover the 170 plants of the reference base, with their own flower and fruit colors.
+- **The pot's face shows how the plant is doing**: thirsty when a watering is late, worried after a diagnosis that calls for care, delighted when it was looked after today.
+- **Pépin, the mascot**, greets you on the Today screen with a word about the day's care.
+- **Pépin's wardrobe**: rename it, choose the plant growing out of it, a pot color and 35 items: knitted sweater, gingham, beanie, straw hat, glasses, scarf, a mug of tea, a watering can…
+- **Cozy scenes** with Pépin in its outfit on the quiet screens: nothing left to do today, no plant yet, an empty wishlist…
+
+<p align="center"><img src="docs/pepin.png" width="720" alt="Pépin in different pot colors and outfits"></p>
+
 ### Around the app
 - **Rain-aware watering**: give a place a town, and outdoor plants count as watered after a rainy day (5 mm or more), with weather from Open-Meteo.
 - **Home-screen widget** with today's care.
@@ -78,6 +89,7 @@ The AI features need a phone with at least 6 GB of RAM and 2.6 GB of free space.
 
 - [Expo](https://expo.dev) SDK 57, React Native 0.86, Expo Router, React Compiler
 - `expo-sqlite` with migrations and reactive queries
+- `react-native-svg` for the drawings, which are SVG built by plain functions in `src/art`
 - [`react-native-litert-lm`](https://github.com/hung-yueh/react-native-litert-lm) (Google's [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM)) running Gemma 4 E2B on the device
 - [`react-native-android-widget`](https://github.com/sAleksovski/react-native-android-widget), `expo-calendar`, `expo-notifications`
 - [Open-Meteo](https://open-meteo.com) for the weather
@@ -97,6 +109,7 @@ The AI and the widget need the native modules of the APK: they don't work in Exp
 
 ```
 src/app/            screens (Expo Router)
+src/art/            drawings: plant families, Pépin and its wardrobe, scenes (`node scripts/art-preview.mjs` renders them)
 src/ai/             on-device model (download, runtime) and the expert's prompts (scan, sheet, diagnosis, chat)
 src/components/     components, with the design system in components/ui
 src/data/           plant reference base (care numbers, toxicity)

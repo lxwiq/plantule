@@ -3,11 +3,12 @@
  * Renders Plantule's drawings (src/art) to a PNG contact sheet, to look at them
  * while drawing. Needs Node 23.6+ (TypeScript type stripping) and Google Chrome.
  *
- *   node scripts/art-preview.mjs [filter] [--out sheet.png] [--size 200] [--cols 6] [--dark] [--svg-dir dir]
+ *   node scripts/art-preview.mjs [filter] [--out sheet.png] [--size 200] [--cols 6] [--dark] [--no-labels] [--svg-dir dir]
  *
- * `filter` keeps the drawings whose "group/name" contains it ("plants/monstera",
- * "pepin", "moods"). --dark draws the tiles on the app's dark background.
- * --svg-dir also writes each drawing to its own .svg file.
+ * `filter` is a regular expression on "group/name": "plants/monstera", "pepin",
+ * "plants/[a-z_]+$" (the families without their color variants). --dark draws
+ * the tiles on the app's dark background. --svg-dir also writes each drawing to
+ * its own .svg file.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -46,13 +47,15 @@ const { values, positionals } = parseArgs({
     size: { type: 'string', default: '200' },
     cols: { type: 'string', default: '6' },
     dark: { type: 'boolean', default: false },
+    'no-labels': { type: 'boolean', default: false },
     'svg-dir': { type: 'string' },
   },
 });
 
 const { previews } = await import(pathToFileURL(join(root, 'src/art/preview.ts')).href);
 const filter = positionals[0] ?? '';
-const items = previews().filter((p) => `${p.group}/${p.name}`.includes(filter));
+const pattern = new RegExp(filter);
+const items = previews().filter((p) => pattern.test(`${p.group}/${p.name}`));
 if (items.length === 0) {
   console.error(`No drawing matches "${filter}".`);
   process.exit(1);
@@ -67,7 +70,7 @@ const size = Number(values.size);
 const cols = Math.min(Number(values.cols), items.length);
 const rows = Math.ceil(items.length / cols);
 const gap = 12;
-const label = 22;
+const label = values['no-labels'] ? 0 : 22;
 const width = cols * (size + gap) + gap;
 const height = rows * (size + label + gap) + gap;
 // The tile colors of PlantThumb: primaryContainer in light and dark mode.
