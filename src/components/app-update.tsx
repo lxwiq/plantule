@@ -83,7 +83,7 @@ function bannerContent(download: UpdateDownload, update: UpdateManifest) {
   switch (download.state) {
     case 'idle':
       return {
-        body: `La version ${update.versionName} est prête à installer.`,
+        body: `La version ${describeVersion(update.versionName, update.versionCode)} est prête à installer.`,
         action: { label: 'Mettre à jour', onPress: () => void confirmAndStart(update) },
       };
     case 'downloading':
