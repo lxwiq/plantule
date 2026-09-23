@@ -16,6 +16,7 @@ Application Android de gestion des plantes. Usage perso : moi et mes proches, ch
 | Backend, connexion | Aucun (décision du 23/09/2026). L'API Rust déjà écrite est gardée sur la branche `backend-rust` |
 | Partage | Pas de partage entre téléphones. Plusieurs **lieux** possibles sur un même téléphone (appart, maison de campagne…) |
 | Notifications | Locales uniquement, un résumé par jour |
+| Réseau | Seulement pour télécharger le modèle et pour la météo (Open-Meteo, gratuit, sans compte : seules les coordonnées arrondies d'une ville sont envoyées) |
 | IA | Gemma 4 dans sa version mobile (E2B/E4B), qui tourne sur le téléphone : gratuit, sans serveur, comprend les images |
 | Scan IA | Phase 2 |
 | Livraison | APK construit par GitHub Actions (pas EAS) |
@@ -25,9 +26,10 @@ Application Android de gestion des plantes. Usage perso : moi et mes proches, ch
 ```
 ┌──────────────────────── Téléphone (Expo) ─────────────────────────┐
 │ Expo Router · écrans                                               │
-│ SQLite (lieux, pièces, plantes, soins, journal, réglages)          │
+│ SQLite (lieux, pièces, plantes, soins, journal, boutures, envies)  │
 │ Photos dans le dossier de l'app · notifications locales            │
 │ Gemma 4 E2B embarqué (LiteRT-LM), téléchargé au premier usage      │
+│ Widget d'accueil · agenda « Plantule » · pluie via Open-Meteo      │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -37,16 +39,19 @@ Application Android de gestion des plantes. Usage perso : moi et mes proches, ch
 
 | Objet | Contenu |
 |---|---|
-| Lieu | nom |
+| Lieu | nom, ville facultative (nom, latitude, longitude) pour la météo |
 | Pièce / zone | lieu, nom, exposition, intérieur ou extérieur |
 | Plante | lieu, surnom, espèce, fiche espèce, pièce, date d'arrivée, pot et substrat, notes, photo principale |
 | Fiche espèce | nom commun et latin, lumière, arrosage, humidité, température, toxicité pour les chats et les chiens, rythme d'engrais, de brumisation et de rempotage, conseils de rempotage, substrat et pot conseillés, problèmes fréquents, bouturage, conseils. Partagée par les plantes de la même espèce. Pour une espèce de la base de référence, les chiffres viennent de la base et Gemma écrit les conseils ; sinon Gemma écrit tout |
 | Tâche d'entretien | plante, type, intervalle en jours, ajustement hiver, dernière fois faite (peut être indiquée à l'ajout de la plante), prochaine échéance |
-| Journal | plante, type d'action, date, note |
+| Journal | plante, type d'action, date, note, pluie tombée (mm) quand c'est la pluie qui a arrosé |
 | Photo | plante, date de prise (lue dans la photo quand elle vient de la galerie, modifiable), date d'ajout, fichier |
 | Diagnostic | plante, date, photo, état (saine, à surveiller, à soigner), problèmes probables avec leur confiance, conseils, changement d'entretien proposé |
 | Conversation | plante, rôle (moi ou Plantule), texte, date |
-| Réglages | lieu affiché, résumé quotidien activé, heure du résumé, date de la dernière sauvegarde |
+| Bouture | lieu, plante mère (facultative), espèce, date de début, méthode (eau, terreau, sphaigne…), statut (en cours, racines, rempotée, ratée), notes, photo, plante qu'elle est devenue |
+| Envie | espèce, note, date d'ajout. Commune à tous les lieux |
+| Météo | cache par lieu : pluie heure par heure (14 jours passés, 2 à venir), date du relevé, dernière pluie qui a arrosé. Hors des sauvegardes |
+| Réglages | lieu affiché, résumé quotidien activé, heure du résumé, date de la dernière sauvegarde, agenda du téléphone activé et son identifiant |
 
 ## Règles métier
 
@@ -57,11 +62,13 @@ Application Android de gestion des plantes. Usage perso : moi et mes proches, ch
 - **Rempotage conseillé par la photo** : si le scan voit qu'il faut rempoter, la tâche tombe tout de suite de mars à août, sinon au 1er mars suivant.
 - **Résumé quotidien** : une notif locale à l'heure choisie (« 3 plantes à arroser »). Elle est recalculée à chaque changement, pour les 30 jours suivants.
 - **Calendrier** : à partir d'aujourd'hui, il projette chaque soin depuis sa prochaine échéance (aujourd'hui s'il est en retard), puis un intervalle plus tard à chaque fois, hiver compris, comme si chaque soin était fait le jour prévu. Les jours passés ne montrent que le journal.
+- **Arrosage par la pluie** : l'arrosage d'une plante dans une pièce en extérieur, dû aujourd'hui ou en retard, compte comme fait s'il est tombé au moins 5 mm en une même journée depuis le dernier arrosage (ou depuis la création de la tâche). Le seuil est par jour : une bruine sur plusieurs jours ne s'additionne pas. C'est le jour de pluie le plus récent qui compte : le journal note « Arrosé par la pluie (X mm) » ce jour-là et la récurrence glissante en repart ; si le prochain arrosage compté depuis cette pluie tombe aujourd'hui ou avant, rien ne change. Seule la pluie tombée compte : une prévision d'au moins 5 mm dans la journée n'affiche qu'un conseil d'attendre. Jamais pour les autres soins, ni pour les plantes d'intérieur ou sans pièce. La météo est relevée à l'ouverture et au retour dans l'app, au plus toutes les 3 h par lieu.
+- **Agenda du téléphone** : un agenda local « Plantule », jamais lié à un compte, avec un événement « journée entière » par jour de soins sur 30 jours, projeté comme le calendrier du mois. Seuls les jours qui changent sont réécrits ; les jours passés restent. L'agenda est reconnu par son compte local et son nom, jamais par son seul identifiant.
 - **Import d'une sauvegarde** : il remplace toutes les données du téléphone, après confirmation. Le fichier est vérifié avant, et tout se fait en une transaction : en cas d'erreur, rien ne change. Une sauvegarde d'une version plus récente de l'app est refusée ; une plus ancienne s'importe.
 
 ## Navigation
 
-Onglets : **Aujourd'hui · Plantes · Scan · Maison**. L'onglet Maison contient le lieu affiché, ses pièces, les autres lieux et les réglages (dont la sauvegarde). Le calendrier du mois s'ouvre depuis l'en-tête d'Aujourd'hui, la galerie de photos depuis la page d'une plante.
+Onglets : **Aujourd'hui · Plantes · Scan · Maison**. L'onglet Plantes a trois vues : Plantes, Boutures (du lieu affiché) et Envies (communes à tous les lieux). L'onglet Maison contient le lieu affiché (avec sa ville pour la météo), ses pièces, les autres lieux et les réglages (dont la sauvegarde et l'agenda). Le calendrier du mois s'ouvre depuis l'en-tête d'Aujourd'hui, la galerie de photos depuis la page d'une plante.
 
 ## Phases
 
@@ -158,11 +165,25 @@ Onglets : **Aujourd'hui · Plantes · Scan · Maison**. L'onglet Maison contient
 
 ### Phase 4 — Bonus
 
-- [ ] Widget Android « à arroser aujourd'hui »
-- [ ] Météo pour les plantes d'extérieur (Open-Meteo) : pas de rappel s'il a plu
-- [ ] Export des tâches vers le calendrier du téléphone
-- [ ] Boutures et liste d'envies
+**Lot livré le 23/09/2026 : widget, agenda, météo, boutures et envies**
+
+- [x] **Widget Android « Soins du jour »** : sur l'écran d'accueil, les plantes à soigner aujourd'hui dans le lieu affiché, retards compris, les arrosages d'abord, « +2 autres » s'il manque de place, « Rien à faire aujourd'hui » sinon. Il suit le thème clair ou sombre, se met à jour dès qu'un soin change et au moins toutes les heures, même app fermée. Le toucher ouvre Aujourd'hui. Pas de bouton « Fait » : la bibliothèque (`react-native-android-widget`) perd les clics des widgets à plusieurs zones après un rafraîchissement
+- [x] **Export vers l'agenda du téléphone** : dans Réglages, « Ajouter les soins à mon agenda » crée un agenda local « Plantule » avec un événement par jour de soins sur 30 jours. Il se réécrit tout seul quand les soins changent et disparaît quand on désactive (`expo-calendar`)
+- [x] **Météo pour les plantes d'extérieur** : un lieu peut avoir une ville (recherche Open-Meteo). Une journée d'au moins 5 mm de pluie compte comme arrosage pour les plantes des pièces en extérieur : journal « Arrosé par la pluie », cycle qui repart du jour de pluie, bandeau sur Aujourd'hui, et conseil d'attendre quand il va pleuvoir
+- [x] **Boutures et liste d'envies** : dans l'onglet Plantes. Les boutures ont plante mère, méthode, statut, notes et photo, et « En faire une plante » crée la plante pré-remplie en gardant le lien. Les envies ont des suggestions de la base de référence, affichent lumière, arrosage et toxicité, et « Je l'ai ! » crée la plante. Les deux sont dans la sauvegarde
+- [x] En plus : une nouvelle plante d'une espèce connue de la base de référence, sans fiche, reçoit le rythme d'arrosage, le coefficient d'hiver et la lumière de la base
 - [ ] Version iOS
+
+**À vérifier sur le téléphone** (widget et agenda essayés sur un émulateur Android, météo, boutures et envies dans le navigateur avec une pluie simulée) :
+
+- que le widget se met à jour le matin quand le téléphone sort de veille (jusqu'à une heure de retard après minuit), et que le toucher marche encore après plusieurs jours ;
+- la taille du widget et son nombre de lignes sur le lanceur du téléphone, puis après redimensionnement ; son aperçu dans le sélecteur ;
+- le temps et la batterie de la mise à jour horaire du widget ;
+- l'agenda « Plantule » dans Google Agenda, avec les événements au bon jour ; deux refus de la permission puis « Ouvrir les réglages » ; une sauvegarde importée avec l'agenda activé ;
+- la recherche de ville et la vraie réponse d'Open-Meteo, sans réseau puis au retour du réseau ;
+- l'arrosage par la pluie au retour dans l'app, et le résumé quotidien recalculé ;
+- la photo d'une bouture, puis sa reprise comme première photo de la plante ; un export puis un import avec des boutures qui ont une photo ;
+- le défilement des puces « Plante mère » avec beaucoup de plantes, et le retour arrière après « Je l'ai ! » et « En faire une plante ».
 
 ## Risques et points ouverts
 
@@ -176,5 +197,7 @@ Onglets : **Aujourd'hui · Plantes · Scan · Maison**. L'onglet Maison contient
 - **Diagnostic santé** : les conseils restent indicatifs, à présenter comme des pistes et non comme un verdict.
 - **Chiffres de la base de référence** : les noms (Wikidata) et la toxicité (ASPCA) sont vérifiés, mais les chiffres d’entretien ont été écrits par nous faute de source libre. Ce sont des points de départ, à corriger dans `src/data/plants.ts` quand l’usage montre qu’ils sont faux. Le badge « Données vérifiées » en dit donc un peu plus qu’il ne faudrait.
 - **Questions et diagnostic sans le modèle** : « Demande à Plantule » et le diagnostic ont besoin de Gemma, donc d’un téléphone de 6 Go de RAM et du modèle téléchargé. Ailleurs, la ligne « Demande à Plantule » est masquée.
+- **Pluie et balcon abrité** : une pièce marquée « en extérieur » est considérée comme arrosée par la pluie. Un balcon abrité doit donc être marqué en intérieur, sinon ses plantes seront oubliées.
+- **Pluie et notifications** : les résumés sont programmés à l'avance. La pluie n'est prise en compte qu'à l'ouverture de l'app : sans l'ouvrir, le rappel d'arrosage part quand même.
 - **Notifications sans ouvrir l'app** : les résumés sont programmés pour 30 jours. Au-delà sans ouvrir l'app, il n'y en a plus.
 - **Version web de développement** : expo-sqlite sur le web coupe les résultats de requête de plus de 255 octets (`web/WorkerChannel.ts`), ce qui casse l'app dans le navigateur avec de vraies données. Pour tester sur le web, il faut corriger ce fichier en local, sans le committer.
