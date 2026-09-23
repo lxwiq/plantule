@@ -27,7 +27,7 @@ Application Android de gestion des plantes. Usage perso : moi et mes proches, ch
 │ Expo Router · écrans                                               │
 │ SQLite (lieux, pièces, plantes, soins, journal, réglages)          │
 │ Photos dans le dossier de l'app · notifications locales            │
-│ Gemma 4 embarqué (phase 2)                                         │
+│ Gemma 4 E2B embarqué (LiteRT-LM), téléchargé au premier usage      │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -39,8 +39,8 @@ Application Android de gestion des plantes. Usage perso : moi et mes proches, ch
 |---|---|
 | Lieu | nom |
 | Pièce / zone | lieu, nom, exposition, intérieur ou extérieur |
-| Plante | lieu, surnom, espèce, pièce, date d'arrivée, pot et substrat, notes, photo principale |
-| Fiche espèce (phase 2) | nom commun et latin, lumière, arrosage, humidité, température, toxicité pour les animaux |
+| Plante | lieu, surnom, espèce, fiche espèce, pièce, date d'arrivée, pot et substrat, notes, photo principale |
+| Fiche espèce | nom commun et latin, lumière, arrosage, humidité, température, toxicité pour les chats et les chiens, rythme d'engrais, de brumisation et de rempotage, conseils. Générée par Gemma et partagée par les plantes de la même espèce |
 | Tâche d'entretien | plante, type, intervalle en jours, ajustement hiver, dernière fois faite, prochaine échéance |
 | Journal | plante, type d'action, date, note |
 | Photo | plante, date, fichier |
@@ -91,12 +91,14 @@ Onglets : **Aujourd'hui · Plantes · Scan** (phase 2) **· Maison**. L'onglet M
 
 ### Phase 2 — Scan IA sur le téléphone
 
-- [ ] Prototype : faire tourner Gemma 4 E2B dans l'app et mesurer la vitesse, la RAM et la précision sur nos propres plantes. Bibliothèques à comparer : `react-native-executorch`, `llama.rn`, `react-native-litert-lm`. Vérifier que l'entrée image est bien supportée. Comparer avec l'API gratuite de Pl@ntNet.
-- [ ] Intégrer le moteur d'inférence (module natif, donc un development build)
-- [ ] Télécharger le modèle au premier usage, en Wi-Fi, avec la progression affichée. Il ne va pas dans l'APK.
-- [ ] Écran de scan : photo → espèce, niveau de confiance et alternatives → confirmation
-- [ ] Fiche d'entretien générée par Gemma, en JSON validé contre un schéma, enregistrée sur le téléphone
-- [ ] Créer une plante depuis le scan, avec un planning d'entretien pré-rempli
+- [x] Choisir la bibliothèque : `react-native-litert-lm` (LiteRT-LM de Google), Gemma 4 E2B avec image en un seul fichier de 2,6 Go. Détails et options écartées dans [ai-engine.md](ai-engine.md)
+- [ ] Mesurer sur un vrai téléphone : temps de chargement et d'analyse, RAM, GPU ou CPU, précision sur nos propres plantes. Comparer avec l'API gratuite de Pl@ntNet
+- [x] Intégrer le moteur d'inférence (module natif, inclus dans l'APK construit par GitHub Actions)
+- [x] Télécharger le modèle au premier usage, en Wi-Fi, avec la progression affichée, l'annulation et la reprise. Il ne va pas dans l'APK.
+- [x] Écran de scan : photo → espèce, niveau de confiance et alternatives → confirmation
+- [x] Fiche d'entretien générée par Gemma, en JSON validé contre un schéma, enregistrée sur le téléphone
+- [x] Créer une plante depuis le scan, avec un planning d'entretien pré-rempli
+- [x] Générer la fiche d'une plante déjà enregistrée, à partir de son espèce
 
 ### Phase 3 — Enrichissement
 

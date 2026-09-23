@@ -3,6 +3,9 @@ import Constants from 'expo-constants';
 import { useEffect, useState } from 'react';
 import { Alert, Linking } from 'react-native';
 
+import { ai } from '@/ai';
+import { formatBytes } from '@/ai/model-format';
+import { ModelCard } from '@/components/ai-model-card';
 import { Banner, icons, ListRow, ListSection, Screen, SwitchRow, Text } from '@/components/ui';
 import { useSettings } from '@/db/hooks';
 import { updateSettings } from '@/db/repo';
@@ -21,6 +24,11 @@ function timeToDate(value: string) {
 
 function dateToTime(date: Date) {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+function scanFooter() {
+  const size = ai.info.sizeBytes > 0 ? ` Il pèse ${formatBytes(ai.info.sizeBytes)}, à télécharger une seule fois.` : '';
+  return `Le modèle d’IA tourne sur ton téléphone : tes photos ne sont envoyées nulle part.${size}`;
 }
 
 export default function Settings() {
@@ -94,6 +102,10 @@ export default function Settings() {
           onDismiss={() => setPickingTime(false)}
         />
       )}
+
+      <ListSection title="Scan IA" footer={scanFooter()}>
+        <ModelCard />
+      </ListSection>
 
       <Banner icon={icons.info} title="Tes données restent sur ce téléphone">
         Plantes, soins, journal et photos sont enregistrés uniquement ici. Désinstaller l’app les

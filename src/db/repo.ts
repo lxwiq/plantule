@@ -5,6 +5,7 @@
 
 import { randomUUID } from 'expo-crypto';
 
+import { speciesKey, validateCareSheet, type CareSheet } from '@/lib/care-sheet';
 import { toDateString, today } from '@/lib/dates';
 import { nextDueAfterDone, postpone, suggestedInterval } from '@/lib/schedule';
 
@@ -21,6 +22,8 @@ import type {
   Room,
   RoomInput,
   Settings,
+  SpeciesSheet,
+  SpeciesSheetSource,
   Task,
   TaskInput,
 } from './types';
@@ -160,8 +163,9 @@ export function createPlant(placeId: string, input: PlantInput): Plant {
   const id = randomUUID();
   const at = now();
   db().runSync(
-    `insert into plants (id, place_id, room_id, nickname, species, acquired_on, pot, substrate, notes, created_at, updated_at)
-     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `insert into plants (id, place_id, room_id, nickname, species, acquired_on, pot, substrate, notes,
+       species_sheet_id, created_at, updated_at)
+     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     placeId,
     input.room_id,
@@ -171,6 +175,7 @@ export function createPlant(placeId: string, input: PlantInput): Plant {
     clean(input.pot),
     clean(input.substrate),
     clean(input.notes),
+    input.species_sheet_id ?? null,
     at,
     at,
   );
@@ -181,7 +186,8 @@ export function createPlant(placeId: string, input: PlantInput): Plant {
 export function updatePlant(id: string, input: PlantInput) {
   db().runSync(
     `update plants set room_id = ?, nickname = ?, species = ?, acquired_on = ?, pot = ?,
-       substrate = ?, notes = ?, updated_at = ?
+       substrate = ?, notes = ?, species_sheet_id = case when ? then ? else species_sheet_id end,
+       updated_at = ?
      where id = ?`,
     input.room_id,
     input.nickname.trim(),
@@ -190,6 +196,8 @@ export function updatePlant(id: string, input: PlantInput) {
     clean(input.pot),
     clean(input.substrate),
     clean(input.notes),
+    input.species_sheet_id !== undefined ? 1 : 0,
+    input.species_sheet_id ?? null,
     now(),
     id,
   );
@@ -202,6 +210,93 @@ export function deletePlant(id: string) {
   db().runSync('delete from plants where id = ?', id);
   files.forEach((f) => deletePhotoFile(f.uri));
   notify('plants', 'photos', 'tasks', 'events');
+}
+
+/** Links a plant to a species sheet, or unlinks it with null. */
+export function setPlantSpeciesSheet(plantId: string, sheetId: string | null) {
+  db().runSync('update plants set species_sheet_id = ?, updated_at = ? where id = ?', sheetId, now(), plantId);
+  notify('plants');
+}
+
+// Species sheets
+
+type SpeciesSheetRow = Omit<SpeciesSheet, 'data'> & { data: string };
+
+/** Null when the stored JSON no longer passes validation (e.g. written by an older version). */
+function toSpeciesSheet(row: SpeciesSheetRow | null): SpeciesSheet | null {
+  if (!row) return null;
+  try {
+    const result = validateCareSheet(JSON.parse(row.data));
+    return result.ok ? { ...row, data: result.value } : null;
+  } catch {
+    return null;
+  }
+}
+
+export function getSpeciesSheet(id: string): SpeciesSheet | null {
+  return toSpeciesSheet(db().getFirstSync<SpeciesSheetRow>('select * from species_sheets where id = ?', id));
+}
+
+/**
+ * The stored sheet for a species name, whatever the case: by scientific name
+ * first, then by common name (what people type). Reused instead of asking the
+ * model again.
+ */
+export function findSpeciesSheet(name: string): SpeciesSheet | null {
+  const key = speciesKey(name);
+  if (!key) return null;
+  return toSpeciesSheet(
+    db().getFirstSync<SpeciesSheetRow>(
+      `select * from species_sheets
+       where scientific_name = ? collate nocase or common_name = ? collate nocase
+       order by scientific_name = ? collate nocase desc, updated_at desc
+       limit 1`,
+      key,
+      key,
+      key,
+    ),
+  );
+}
+
+/** Stores a sheet, replacing the one with the same scientific name if there is one. */
+export function saveSpeciesSheet(sheet: CareSheet, source: SpeciesSheetSource): SpeciesSheet {
+  const data: CareSheet = {
+    ...sheet,
+    scientific_name: speciesKey(sheet.scientific_name),
+    common_name: sheet.common_name.trim(),
+  };
+  const at = now();
+  const existing = db().getFirstSync<{ id: string }>(
+    'select id from species_sheets where scientific_name = ? collate nocase',
+    data.scientific_name,
+  );
+  const id = existing?.id ?? randomUUID();
+  if (existing) {
+    db().runSync(
+      `update species_sheets set scientific_name = ?, common_name = ?, data = ?, source = ?, updated_at = ?
+       where id = ?`,
+      data.scientific_name,
+      data.common_name,
+      JSON.stringify(data),
+      source,
+      at,
+      id,
+    );
+  } else {
+    db().runSync(
+      `insert into species_sheets (id, scientific_name, common_name, data, source, created_at, updated_at)
+       values (?, ?, ?, ?, ?, ?, ?)`,
+      id,
+      data.scientific_name,
+      data.common_name,
+      JSON.stringify(data),
+      source,
+      at,
+      at,
+    );
+  }
+  notify('species_sheets');
+  return getSpeciesSheet(id)!;
 }
 
 // Photos

@@ -31,6 +31,7 @@ function plant(id: string, nickname: string): Plant {
     room_id: null,
     nickname,
     species: null,
+    species_sheet_id: null,
     acquired_on: null,
     pot: null,
     substrate: null,

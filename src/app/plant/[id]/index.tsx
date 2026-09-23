@@ -3,9 +3,12 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
 
+import { useModelStatus } from '@/ai';
+import { CareSheetSections, SHEET_DISCLAIMER } from '@/components/care-sheet-view';
 import { EventRow } from '@/components/event-row';
 import { TaskRow } from '@/components/task-row';
 import {
+  Banner,
   Button,
   EmptyState,
   Icon,
@@ -16,8 +19,16 @@ import {
   Screen,
   Text,
 } from '@/components/ui';
-import { usePhotos, usePlant, usePlantEvents, useRooms, useTasks } from '@/db/hooks';
-import { addPhoto, deletePhoto, deletePlant, setMainPhoto } from '@/db/repo';
+import {
+  usePhotos,
+  usePlant,
+  usePlantEvents,
+  useRooms,
+  useSpeciesSheet,
+  useSpeciesSheetMatch,
+  useTasks,
+} from '@/db/hooks';
+import { addPhoto, deletePhoto, deletePlant, setMainPhoto, setPlantSpeciesSheet } from '@/db/repo';
 import type { Photo, Plant } from '@/db/types';
 import { careActions } from '@/lib/care-actions';
 import { formatShortDate } from '@/lib/dates';
@@ -252,6 +263,8 @@ function PlantDetails({ plant }: { plant: Plant }) {
           )}
         </View>
 
+        <SpeciesSheetSection plant={plant} />
+
         {(details.length > 0 || plant.notes) && (
           <ListSection title="Infos">
             {details.map((d) => (
@@ -278,5 +291,56 @@ function PlantDetails({ plant }: { plant: Plant }) {
         </ListSection>
       </Screen>
     </>
+  );
+}
+
+/** The plant's species sheet, or a way to get one when its species is known. */
+function SpeciesSheetSection({ plant }: { plant: Plant }) {
+  const status = useModelStatus();
+  const sheet = useSpeciesSheet(plant.species_sheet_id);
+  // A sheet already on the phone for this species: no need for the model.
+  const match = useSpeciesSheetMatch(sheet ? null : plant.species);
+
+  if (sheet) {
+    const confirmRemove = () =>
+      Alert.alert('Retirer la fiche espèce ?', 'Elle reste sur ton téléphone pour les autres plantes.', [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Retirer', style: 'destructive', onPress: () => setPlantSpeciesSheet(plant.id, null) },
+      ]);
+    return (
+      <CareSheetSections
+        sheet={sheet.data}
+        title="Fiche espèce"
+        showNames
+        footer={SHEET_DISCLAIMER}
+        action={<Button title="Retirer" variant="text" size="sm" onPress={confirmRemove} />}
+      />
+    );
+  }
+
+  const species = plant.species;
+  if (!species) return null;
+  if (match) {
+    return (
+      <Banner
+        icon={icons.sparkles}
+        title="Fiche espèce"
+        action={{ label: 'Ajouter la fiche', onPress: () => setPlantSpeciesSheet(plant.id, match.id) }}>
+        {`La fiche « ${match.common_name} » est déjà sur ton téléphone : lumière, arrosage, toxicité…`}
+      </Banner>
+    );
+  }
+  if (status.state !== 'ready') return null;
+  return (
+    <Banner
+      icon={icons.sparkles}
+      title="Fiche espèce"
+      action={{
+        label: 'Générer la fiche',
+        onPress: () =>
+          router.push({ pathname: '/scan/sheet', params: { species, plantId: plant.id } }),
+      }}>
+      Lumière, arrosage, toxicité pour les animaux… rédigés par le modèle, sur ton téléphone.
+    </Banner>
   );
 }

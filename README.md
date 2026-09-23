@@ -13,6 +13,7 @@ Tout reste sur le téléphone : pas de compte, pas de serveur. Les données sont
 - **Récurrence glissante** : la prochaine échéance part du jour où le soin a été fait. En hiver (novembre à février), l'intervalle est multiplié par le coefficient du soin. Après deux « terreau encore humide » de suite, l'app propose d'allonger l'intervalle.
 - **Journal** : tout ce qui a été fait ou reporté, par plante.
 - **Résumé quotidien** : une notification locale par jour, à l'heure choisie.
+- **Scan** : on photographie une plante, Gemma 4 E2B propose l'espèce, puis rédige sa fiche d'entretien et les soins à programmer. Le modèle tourne sur le téléphone : il se télécharge une fois (2,6 Go, en Wi-Fi) et aucune photo ne sort du téléphone. Il faut un téléphone Android avec 6 Go de RAM. Voir [docs/ai-engine.md](docs/ai-engine.md).
 
 ## Développer
 
@@ -24,13 +25,16 @@ npx tsc --noEmit    # typecheck
 npx expo lint       # lint
 ```
 
+Le scan a besoin du module natif de l'APK : il ne marche ni dans Expo Go ni dans le navigateur. Pour essayer ses écrans quand même, lance `EXPO_PUBLIC_FAKE_AI=1 npx expo start` : un faux modèle répond à la place de Gemma.
+
 Structure :
 
 ```
 src/app/            écrans (Expo Router)
+src/ai/             modèle sur le téléphone (téléchargement, exécution) et questions du scan
 src/components/     composants, dont le design system dans components/ui
 src/db/             base SQLite : schéma et migrations, requêtes, hooks réactifs
-src/lib/            règles de récurrence, dates, libellés
+src/lib/            règles de récurrence, dates, libellés, fiche espèce et sa validation
 src/notifications/  résumé quotidien
 src/theme/          couleurs, typographie, espacements (clair et sombre)
 ```

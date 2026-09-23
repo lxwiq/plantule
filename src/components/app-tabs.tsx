@@ -26,6 +26,10 @@ export function AppTabs() {
         <NativeTabs.Trigger.Icon sf={{ default: 'leaf', selected: 'leaf.fill' }} md="potted_plant" />
         <NativeTabs.Trigger.Label>Plantes</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="scan">
+        <NativeTabs.Trigger.Icon sf="camera.viewfinder" md="center_focus_weak" />
+        <NativeTabs.Trigger.Label>Scan</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="place">
         <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} md="home" />
         <NativeTabs.Trigger.Label>Maison</NativeTabs.Trigger.Label>

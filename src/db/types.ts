@@ -1,5 +1,7 @@
 /** Data stored on the phone. Dates are "YYYY-MM-DD", instants are ISO strings. */
 
+import type { CareSheet } from '@/lib/care-sheet';
+
 export type Light = 'full_sun' | 'bright_indirect' | 'partial_shade' | 'shade';
 
 export type TaskKind =
@@ -35,8 +37,9 @@ export type Plant = {
   place_id: string;
   room_id: string | null;
   nickname: string;
-  /** Free text for now; linked to a species sheet in phase 2. */
+  /** Free text, typed or confirmed after a scan. */
   species: string | null;
+  species_sheet_id: string | null;
   acquired_on: string | null;
   pot: string | null;
   substrate: string | null;
@@ -44,6 +47,21 @@ export type Plant = {
   main_photo_id: string | null;
   /** File of the main photo, joined from photos. */
   main_photo_uri: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Where a species sheet comes from. Only the on-device model for now. */
+export type SpeciesSheetSource = 'ai';
+
+/** Care advice for a species, shared by every plant of that species. */
+export type SpeciesSheet = {
+  id: string;
+  /** Unique, whatever the case. */
+  scientific_name: string;
+  common_name: string;
+  data: CareSheet;
+  source: SpeciesSheetSource;
   created_at: string;
   updated_at: string;
 };
@@ -104,6 +122,8 @@ export type PlantInput = {
   pot: string | null;
   substrate: string | null;
   notes: string | null;
+  /** Leaving it out keeps the current sheet on update, and means none on creation. */
+  species_sheet_id?: string | null;
 };
 
 export type TaskInput = {

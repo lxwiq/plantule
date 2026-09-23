@@ -84,6 +84,23 @@ const MIGRATIONS: string[] = [
     value text not null
   );
   `,
+  // 2: species care sheets, written by the on-device model and shared by the
+  // plants of the same species.
+  `
+  create table species_sheets (
+    id text primary key,
+    scientific_name text not null,
+    common_name text not null,
+    data text not null,
+    source text not null,
+    created_at text not null,
+    updated_at text not null
+  );
+  create unique index species_sheets_name_idx on species_sheets (scientific_name collate nocase);
+
+  alter table plants add column species_sheet_id text references species_sheets (id) on delete set null;
+  create index plants_sheet_idx on plants (species_sheet_id);
+  `,
 ];
 
 export const DATABASE_NAME = 'plantule.db';

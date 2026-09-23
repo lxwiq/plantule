@@ -54,7 +54,8 @@
           "photosPermission": "Plantule accède à tes photos pour illustrer tes plantes.",
           "microphonePermission": false
         }
-      ]
+      ],
+      "react-native-litert-lm"
     ],
     "experiments": {
       "typedRoutes": true,

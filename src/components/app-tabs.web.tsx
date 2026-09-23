@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 
-import { Icon } from '@/components/ui';
+import { Icon, icons } from '@/components/ui';
 import { useDueCount } from '@/hooks/use-due-count';
 import { useTheme } from '@/theme';
 
@@ -29,6 +29,13 @@ export function AppTabs() {
         options={{
           title: 'Plantes',
           tabBarIcon: ({ color }) => <Icon name={{ ios: 'leaf', android: 'potted_plant' }} color={color as string} />,
+        }}
+      />
+      <Tabs.Screen
+        name="scan"
+        options={{
+          title: 'Scan',
+          tabBarIcon: ({ color }) => <Icon name={icons.scan} color={color as string} />,
         }}
       />
       <Tabs.Screen

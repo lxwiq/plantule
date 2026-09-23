@@ -7,7 +7,15 @@
 
 import { useSyncExternalStore } from 'react';
 
-export type Table = 'places' | 'rooms' | 'plants' | 'photos' | 'tasks' | 'events' | 'settings';
+export type Table =
+  | 'places'
+  | 'rooms'
+  | 'plants'
+  | 'photos'
+  | 'tasks'
+  | 'events'
+  | 'settings'
+  | 'species_sheets';
 
 const versions = new Map<Table, number>();
 const listeners = new Set<() => void>();

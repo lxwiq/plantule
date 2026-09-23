@@ -50,3 +50,16 @@ export function usePhotos(plantId: string) {
 export function usePlantEvents(plantId: string) {
   return useLiveQuery(`events:${plantId}`, ['events'], () => repo.listPlantEvents(plantId));
 }
+
+export function useSpeciesSheet(sheetId: string | null | undefined) {
+  return useLiveQuery(`species_sheet:${sheetId ?? ''}`, ['species_sheets'], () =>
+    sheetId ? repo.getSpeciesSheet(sheetId) : null,
+  );
+}
+
+/** The stored sheet matching a species name, if any (see `findSpeciesSheet`). */
+export function useSpeciesSheetMatch(name: string | null | undefined) {
+  return useLiveQuery(`species_sheet_match:${name ?? ''}`, ['species_sheets'], () =>
+    name ? repo.findSpeciesSheet(name) : null,
+  );
+}

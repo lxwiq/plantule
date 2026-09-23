@@ -109,6 +109,8 @@ function App() {
         <Stack.Screen name="place/new" options={{ title: 'Nouveau lieu', presentation: 'modal' }} />
         <Stack.Screen name="place/edit" options={{ title: 'Renommer le lieu', presentation: 'modal' }} />
         <Stack.Screen name="settings" options={{ title: 'Réglages' }} />
+        <Stack.Screen name="scan/identify" options={{ title: 'Identification' }} />
+        <Stack.Screen name="scan/sheet" options={{ title: 'Fiche espèce' }} />
       </Stack>
     </ThemeProvider>
   );

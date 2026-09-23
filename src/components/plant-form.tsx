@@ -45,10 +45,12 @@ type PlantFieldsProps = {
   onChange: (draft: PlantDraft) => void;
   rooms: Room[];
   autoFocus?: boolean;
+  /** Under the species field. */
+  speciesHint?: string;
 };
 
 /** The plant's details, shared by the create and edit screens. */
-export function PlantFields({ draft, onChange, rooms, autoFocus }: PlantFieldsProps) {
+export function PlantFields({ draft, onChange, rooms, autoFocus, speciesHint }: PlantFieldsProps) {
   const set = <K extends keyof PlantDraft>(key: K) => (value: PlantDraft[K]) =>
     onChange({ ...draft, [key]: value });
 
@@ -70,6 +72,7 @@ export function PlantFields({ draft, onChange, rooms, autoFocus }: PlantFieldsPr
         onChangeText={set('species')}
         autoCapitalize="sentences"
         maxLength={120}
+        hint={speciesHint}
       />
 
       <View style={{ gap: spacing.sm }}>
