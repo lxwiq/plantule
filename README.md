@@ -1,56 +1,55 @@
-# Welcome to your Expo app 👋
+# Plantule
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+App Android pour s'occuper de ses plantes : ce qu'il faut faire aujourd'hui, un rappel chaque matin, et l'historique de chaque plante.
 
-## Get started
+Tout reste sur le téléphone : pas de compte, pas de serveur. Les données sont dans une base SQLite locale, et les photos dans le dossier de l'app.
 
-1. Install dependencies
+## Fonctionnalités
 
-   ```bash
-   npm install
-   ```
+- **Lieux et pièces** : plusieurs lieux (appartement, maison de campagne…), chacun avec ses pièces et zones (exposition, intérieur ou extérieur).
+- **Plantes** : surnom, espèce, pièce, date d'arrivée, pot, substrat, notes et photos (appareil photo ou galerie).
+- **Soins** : arrosage, engrais, brumisation, rempotage… avec un intervalle en jours et un ajustement d'hiver.
+- **Aujourd'hui** : les soins en retard, ceux du jour, ceux déjà faits et la semaine à venir. On coche « fait », on reporte, ou on signale « terreau encore humide ».
+- **Récurrence glissante** : la prochaine échéance part du jour où le soin a été fait. En hiver (novembre à février), l'intervalle est multiplié par le coefficient du soin. Après deux « terreau encore humide » de suite, l'app propose d'allonger l'intervalle.
+- **Journal** : tout ce qui a été fait ou reporté, par plante.
+- **Résumé quotidien** : une notification locale par jour, à l'heure choisie.
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Développer
 
 ```bash
-npm run reset-project
+npm install
+npx expo start      # puis « a » pour Android (Expo Go ou émulateur)
+npm test            # tests unitaires (règles de récurrence, dates, résumé)
+npx tsc --noEmit    # typecheck
+npx expo lint       # lint
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Structure :
 
-### Other setup steps
+```
+src/app/            écrans (Expo Router)
+src/components/     composants, dont le design system dans components/ui
+src/db/             base SQLite : schéma et migrations, requêtes, hooks réactifs
+src/lib/            règles de récurrence, dates, libellés
+src/notifications/  résumé quotidien
+src/theme/          couleurs, typographie, espacements (clair et sombre)
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Le schéma de la base est dans `src/db/database.ts`. Pour le faire évoluer, ajoute une migration à la fin de `MIGRATIONS` et ne modifie jamais une migration déjà publiée.
 
-## Learn more
+### Dans un navigateur
 
-To learn more about developing your project with Expo, look at the following resources:
+Le web ne sert qu'au développement. `expo-sqlite` y a besoin des en-têtes `Cross-Origin-Embedder-Policy: credentialless` et `Cross-Origin-Opener-Policy: same-origin` sur la page. Le serveur de dev d'Expo ne les ajoute pas à la page HTML : il faut passer par un petit proxy local qui les ajoute. De plus, `expo-sqlite` 57.0.3 a un bug sur le web avec les requêtes synchrones dont le résultat dépasse 255 octets. Android n'est pas concerné.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Livrer
 
-## Join the community
+Les APK sont construits par GitHub Actions, pas par EAS (voir `.github/workflows/android.yml`) :
 
-Join our community of developers creating universal apps.
+- chaque push sur `main` publie un APK de test dans la release `preview` ;
+- un tag `vX.Y.Z` (égal à `expo.version` dans `app.json`) publie un APK et un AAB versionnés.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Le build vérifie d'abord le typecheck, le lint et les tests.
+
+## Serveur (mis de côté)
+
+Une première version synchronisait les données entre les membres d'une maison via une API Rust (Axum, Postgres). Elle est conservée sur la branche `backend-rust`.

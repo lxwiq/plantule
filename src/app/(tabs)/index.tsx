@@ -1,0 +1,140 @@
+import { router } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
+import { View } from 'react-native';
+
+import { TaskRow } from '@/components/task-row';
+import {
+  Banner,
+  EmptyState,
+  icons,
+  IconButton,
+  ListSection,
+  Screen,
+  ScreenTitle,
+  Text,
+} from '@/components/ui';
+import { useCurrentPlace, usePlants, useRooms, useSettings, useTasks } from '@/db/hooks';
+import type { Task } from '@/db/types';
+import { careActions } from '@/lib/care-actions';
+import { formatLongDate, today } from '@/lib/dates';
+import { plural } from '@/lib/labels';
+import { groupTasks } from '@/lib/tasks';
+import { capitalize } from '@/lib/text';
+import {
+  notificationPermission,
+  requestNotificationPermission,
+} from '@/notifications/daily-summary';
+import { spacing } from '@/theme';
+
+/** Offers to turn on the daily summary until the user decides. */
+function NotificationPrompt() {
+  const { daily_summary_enabled } = useSettings();
+  const [status, setStatus] = useState<'granted' | 'denied' | 'undetermined' | null>(null);
+  useEffect(() => {
+    notificationPermission().then(setStatus, () => setStatus('denied'));
+  }, []);
+  if (!daily_summary_enabled || status !== 'undetermined') return null;
+  return (
+    <Banner
+      icon={icons.notifications}
+      title="Résumé du jour"
+      action={{
+        label: 'Activer les notifications',
+        onPress: () => {
+          requestNotificationPermission().then(
+            (granted) => setStatus(granted ? 'granted' : 'denied'),
+            () => setStatus('denied'),
+          );
+        },
+      }}>
+      Reçois chaque matin la liste des plantes à soigner.
+    </Banner>
+  );
+}
+
+export default function Today() {
+  const place = useCurrentPlace();
+  const tasks = useTasks(place.id);
+  const plants = usePlants(place.id);
+  const rooms = useRooms(place.id);
+
+  const day = today();
+  const plantsById = useMemo(() => new Map(plants.map((p) => [p.id, p])), [plants]);
+  const roomNames = useMemo(() => new Map(rooms.map((r) => [r.id, r.name])), [rooms]);
+  const groups = useMemo(() => groupTasks(tasks, day), [tasks, day]);
+
+  const renderRows = (list: Task[], withCheck: boolean) =>
+    list.map((task) => {
+      const plant = plantsById.get(task.plant_id);
+      if (!plant) return null;
+      return (
+        <TaskRow
+          key={task.id}
+          task={task}
+          plant={plant}
+          roomName={plant.room_id ? roomNames.get(plant.room_id) : null}
+          onPress={() => router.push({ pathname: '/task/[id]', params: { id: task.id } })}
+          onComplete={withCheck ? () => careActions.complete(task.id) : undefined}
+        />
+      );
+    });
+
+  const toDo = groups.overdue.length + groups.dueToday.length;
+
+  return (
+    <Screen topInset>
+      <ScreenTitle
+        title="Aujourd’hui"
+        subtitle={`${capitalize(formatLongDate(day))} · ${place.name}`}
+        actions={
+          <IconButton icon={icons.settings} label="Réglages" onPress={() => router.push('/settings')} />
+        }
+      />
+
+      {plants.length === 0 ? (
+        <EmptyState
+          title="Aucune plante pour l’instant"
+          message="Ajoute tes plantes et leurs soins : cet écran te dira chaque jour quoi faire."
+          action={{ label: 'Ajouter une plante', icon: icons.add, onPress: () => router.push('/plant/new') }}
+        />
+      ) : tasks.length === 0 ? (
+        <EmptyState
+          icon={icons.schedule}
+          title="Aucun rappel"
+          message="Ouvre une plante pour lui ajouter un arrosage ou un autre soin régulier."
+          action={{ label: 'Voir les plantes', onPress: () => router.navigate('/plants') }}
+        />
+      ) : (
+        <>
+          <View style={{ gap: spacing.xs }}>
+            <Text variant="heading" accessibilityLiveRegion="polite">
+              {toDo === 0 ? 'Tout est fait pour aujourd’hui' : `${plural(toDo, 'soin')} à faire`}
+            </Text>
+          </View>
+
+          <NotificationPrompt />
+
+          {toDo === 0 && (
+            <EmptyState
+              icon={icons.check}
+              title="Rien à faire"
+              message="Toutes les plantes sont à jour. Reviens demain !"
+            />
+          )}
+          {groups.overdue.length > 0 && (
+            <ListSection title="En retard">{renderRows(groups.overdue, true)}</ListSection>
+          )}
+          {groups.dueToday.length > 0 && (
+            <ListSection title="Aujourd’hui">{renderRows(groups.dueToday, true)}</ListSection>
+          )}
+          {groups.doneToday.length > 0 && (
+            <ListSection title="Fait aujourd’hui">{renderRows(groups.doneToday, false)}</ListSection>
+          )}
+          {groups.upcoming.length > 0 && (
+            <ListSection title="Cette semaine">{renderRows(groups.upcoming, false)}</ListSection>
+          )}
+        </>
+      )}
+    </Screen>
+  );
+}

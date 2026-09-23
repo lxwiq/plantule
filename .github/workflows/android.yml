@@ -39,6 +39,12 @@ jobs:
 
       - run: npm ci
 
+      - name: Typecheck, lint and test
+        run: |
+          npx tsc --noEmit
+          npx expo lint
+          npm test -- --ci
+
       - name: Check tag matches app.json version
         if: env.IS_RELEASE == 'true'
         run: |
