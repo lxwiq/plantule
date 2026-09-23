@@ -8,8 +8,10 @@ import { useEffect } from 'react';
 import { DATABASE_NAME, initDatabase } from '@/db/database';
 import { useCurrentPlace, usePlants, useSettings, useTasks } from '@/db/hooks';
 import { ensurePlace } from '@/db/repo';
+import { useToday } from '@/hooks/use-today';
 import { syncDailySummary } from '@/notifications/daily-summary';
 import { palettes, typography, useScheme, useTheme } from '@/theme';
+import { updateTodayWidget } from '@/widget';
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -54,6 +56,23 @@ function DailySummarySync() {
   return null;
 }
 
+/** Redraws the home-screen widget whenever the place, its tasks or plants, or the day change. */
+function TodayWidgetSync() {
+  const place = useCurrentPlace();
+  const tasks = useTasks(place.id);
+  const plants = usePlants(place.id);
+  const day = useToday();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      updateTodayWidget({ placeName: place.name, tasks, plants }).catch(() => undefined);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [place.name, tasks, plants, day]);
+
+  return null;
+}
+
 export default function RootLayout() {
   // The app renders once the database is open and migrated.
   return (
@@ -80,6 +99,7 @@ function App() {
     <ThemeProvider value={navigationTheme}>
       <StatusBar style="auto" />
       <DailySummarySync />
+      <TodayWidgetSync />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: theme.background },

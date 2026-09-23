@@ -55,7 +55,27 @@
           "microphonePermission": false
         }
       ],
-      "react-native-litert-lm"
+      "react-native-litert-lm",
+      [
+        "react-native-android-widget",
+        {
+          "fonts": ["./node_modules/@expo-google-fonts/fraunces/600SemiBold/Fraunces_600SemiBold.ttf"],
+          "widgets": [
+            {
+              "name": "TodayCare",
+              "label": "Soins du jour",
+              "description": "Les plantes à arroser et les autres soins du jour, dans le lieu affiché.",
+              "previewImage": "./assets/images/widget-preview.png",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 3600000
+            }
+          ]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
